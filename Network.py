@@ -101,16 +101,16 @@ class PolicyValueNet:
     def train_step(self, batch):
         self.policy_value_net.train()
         criterion = nn.KLDivLoss(reduction="batchmean")
-        state, prob, value = batch
-        self.opt.zero_grad()
-        log_p_pred, value_pred = self.policy_value_net(state)
-        v_loss = F.smooth_l1_loss(value_pred, value)
-        # p_loss = -torch.mean(torch.sum(prob * log_p_pred, 1))
-        p_loss = criterion(log_p_pred, prob)
-        loss = p_loss + v_loss
-        loss.backward()
-        self.opt.step()
-        entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
+        for state, prob, value in batch:
+            self.opt.zero_grad()
+            log_p_pred, value_pred = self.policy_value_net(state)
+            v_loss = F.smooth_l1_loss(value_pred, value)
+            # p_loss = -torch.mean(torch.sum(prob * log_p_pred, 1))
+            p_loss = criterion(log_p_pred, prob)
+            loss = p_loss + v_loss
+            loss.backward()
+            self.opt.step()
+            entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
         return loss.item(), entropy.item()
 
     def save(self, params=None):

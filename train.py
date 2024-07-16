@@ -77,7 +77,7 @@ class TrainPipeline:
         old_probs, old_v = self.policy_value_net.policy_value(batch[0])
         for _ in range(self.epochs):
             set_learning_rate(self.policy_value_net.opt, self.lr * self.lr_multiplier)
-            res = self.policy_value_net.train_step(batch)
+            res = self.policy_value_net.train_step(self.buffer.dataloader(self.batch_size))
             new_probs, new_v = self.policy_value_net.policy_value(batch[0])
             loss.append(res[0])
             entropy.append(res[1])
