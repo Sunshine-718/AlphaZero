@@ -3,9 +3,6 @@
 # Written by: Sunshine
 # Created on: 13/Jul/2024  23:13
 from env import Env, board_to_state
-from MCTS import MCTSNode, MCTS_policy
-# from alphaZero import MCTSNode as MCTSNodeAZ
-# from alphaZero import MCTS_policy as MCTS_policyAZ
 from copy import deepcopy
 import torch
 import torch.nn as nn
