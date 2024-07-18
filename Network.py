@@ -12,31 +12,27 @@ import numpy as np
 class Network(nn.Module):
     def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu'):
         super().__init__()
-        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
-                                    nn.LeakyReLU(0.2, True),
+        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(5, 5), padding=(2, 2)),
+                                    nn.SiLU(True),
                                     nn.Conv2d(h_dim, h_dim * 2,
-                                              kernel_size=(3, 3)),
-                                    nn.LeakyReLU(0.2, True),
+                                              kernel_size=(3, 4)),
+                                    nn.SiLU(True),
                                     nn.Conv2d(h_dim * 2, h_dim * 4,
                                               kernel_size=(3, 3)),
-                                    nn.LeakyReLU(0.2, True),
+                                    nn.SiLU(True),
                                     nn.Conv2d(h_dim * 4, h_dim * 8,
-                                              kernel_size=(3, 3)),
-                                    nn.LeakyReLU(0.2, True),)
-        self.policy = nn.Sequential(nn.Conv2d(h_dim * 8, h_dim * 4, kernel_size=(2, 3)),
-                                    nn.LeakyReLU(0.2, True),
-                                    nn.Flatten(),
-                                    nn.Linear(h_dim * 4, h_dim * 4),
-                                    nn.LeakyReLU(0.2, True),
-                                    nn.Linear(h_dim * 4, out_dim),
-                                    nn.LogSoftmax(dim=1))
-        self.value = nn.Sequential(nn.Conv2d(h_dim * 8, h_dim * 4, kernel_size=(2, 3)),
-                                   nn.LeakyReLU(0.2, True),
-                                   nn.Flatten(),
-                                   nn.Linear(h_dim * 4, h_dim * 4),
-                                   nn.LeakyReLU(0.2, True),
-                                   nn.Linear(h_dim * 4, 1),
-                                   nn.Tanh())
+                                              kernel_size=(2, 2)),
+                                    nn.Tanh(),
+                                    nn.Flatten())
+        self.policy_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 8),
+                                         nn.SiLU(True),
+                                         nn.Linear(h_dim * 8, out_dim),
+                                         nn.LogSoftmax(dim=1))
+        self.value_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 8),
+                                        nn.SiLU(True),
+                                        nn.Linear(h_dim * 8, 1),
+                                        nn.Tanh())
+
         self.device = device
         self.opt = Adam(self.parameters(), lr=lr, weight_decay=1e-4)
         self.weight_init()
@@ -67,17 +63,23 @@ class Network(nn.Module):
 
     def forward(self, x):
         hidden = self.hidden(x)
-        return self.policy(hidden), self.value(hidden)
+        return self.policy_head(hidden), self.value_head(hidden)
 
 
 class PolicyValueNet:
     def __init__(self, lr, params=None, device='cpu'):
         self.device = device
         self.params = params
-        self.policy_value_net = torch.compile(Network(lr, 3, 64, 7, device), mode='max-autotune')
+        self.policy_value_net = Network(lr, 3, 32, 7, device)
         self.opt = self.policy_value_net.opt
         if params:
             self.policy_value_net.load(params)
+
+    def train(self):
+        self.policy_value_net.train()
+
+    def eval(self):
+        self.policy_value_net.eval()
 
     def policy_value(self, state):
         self.policy_value_net.eval()
@@ -100,24 +102,25 @@ class PolicyValueNet:
 
     def train_step(self, batch):
         self.policy_value_net.train()
-        criterion = nn.KLDivLoss(reduction="batchmean")
-        for state, prob, value in batch:
-            self.opt.zero_grad()
-            log_p_pred, value_pred = self.policy_value_net(state)
-            v_loss = F.smooth_l1_loss(value_pred, value)
-            # p_loss = -torch.mean(torch.sum(prob * log_p_pred, 1))
-            p_loss = criterion(log_p_pred, prob)
-            loss = p_loss + v_loss
-            loss.backward()
-            self.opt.step()
-            entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
+        # criterion = nn.KLDivLoss(reduction="batchmean")
+        state, prob, value = batch
+        self.opt.zero_grad()
+        log_p_pred, value_pred = self.policy_value_net(state)
+        v_loss = F.smooth_l1_loss(value_pred, value)
+        p_loss = -torch.mean(torch.sum(prob * log_p_pred, 1))
+        # p_loss = criterion(log_p_pred, prob)
+        loss = p_loss + v_loss
+        loss.backward()
+        self.opt.step()
+        entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
+        self.policy_value_net.eval()
         return loss.item(), entropy.item()
 
     def save(self, params=None):
         if params is None:
             params = self.params
         self.policy_value_net.save(params)
-    
+
     def load(self, params=None):
         if params is None:
             params = self.params

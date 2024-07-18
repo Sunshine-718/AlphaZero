@@ -14,8 +14,8 @@ class MCTS_AZ(MCTS):
     def playout(self, env, dirichlet_alpha=0.3):
         node = self.select_leaf_node(env)
         action_probs, leaf_value = self.policy(env)
-        noise = np.random.dirichlet([dirichlet_alpha for _ in action_probs])
         if not env.done():
+            noise = np.random.dirichlet([dirichlet_alpha for _ in action_probs])
             node.expand(action_probs, noise)
         else:
             winner = env.winPlayer()
@@ -25,12 +25,12 @@ class MCTS_AZ(MCTS):
                 leaf_value = (1 if winner == env.turn else -1)
         node.update_recursive(-leaf_value)
 
-    def get_action_probs(self, env, temp=1e-3):
+    def get_action_probs(self, env, temp=1, dirichlet_alpha=0.3):
         for _ in range(self.n_playout):
-            self.playout(deepcopy(env))
+            self.playout(deepcopy(env), dirichlet_alpha)
         act_visits = [(action, node.n_visits) for action, node in self.root.children.items()]
         actions, visits = zip(*act_visits)
-        act_probs = softmax(np.log(np.array(visits) + 1e-10) / temp)
+        act_probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
         return actions, act_probs
 
 
@@ -38,6 +38,12 @@ class AlphaZeroPlayer:
     def __init__(self, policy_value_fn, c_puct=5, n_playout=2000, is_selfplay=0):
         self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
         self.is_selfplay = is_selfplay
+
+    def train(self):
+        self.mcts.train()
+    
+    def eval(self):
+        self.mcts.eval()
     
     def set_player_ind(self, p):
         self.player = p
@@ -48,11 +54,11 @@ class AlphaZeroPlayer:
     def __str__(self):
         return f'MCTS {self.player}'
     
-    def get_action(self, env, temp=1e-3):
+    def get_action(self, env, temp=1e-3, dirichlet_alpha=0.3):
         valid = env.valid_move()
         action_probs = np.zeros((7,))
         if len(valid) > 0:
-            actions, probs = self.mcts.get_action_probs(env, temp)
+            actions, probs = self.mcts.get_action_probs(env, temp, dirichlet_alpha)
             action_probs[list(actions)] = probs
             action = np.random.choice(actions, p=probs)
             if self.is_selfplay:

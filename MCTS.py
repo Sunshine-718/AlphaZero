@@ -37,18 +37,21 @@ def policy_value_fn(env):
 
 
 class TreeNode:
-    def __init__(self, parent, prior):
+    def __init__(self, parent, prior, dirichlet_noise=None, deterministic=False):
         self.parent = parent
         self.children = {}
         self.n_visits = 0
         self.Q = 0
         self.u = 0
         self.prior = prior
+        self.noise = dirichlet_noise if dirichlet_noise is not None else prior
+        self.deterministic = deterministic
     
     def expand(self, action_probs, noise=None):
+        noise = [self.prior for _ in action_probs] if (noise is None or self.deterministic) else noise
         for idx, (action, prior) in enumerate(action_probs):
             if action not in self.children:
-                self.children[action] = TreeNode(self, prior if noise is None else 0.75 * prior + 0.25 * noise[idx])
+                self.children[action] = TreeNode(self, prior, noise[idx], self.deterministic)
     
     def select(self, c_puct):
         return max(self.children.items(), key=lambda action_node: action_node[1].get_value(c_puct))
@@ -63,7 +66,11 @@ class TreeNode:
         self.update(leaf_value)
     
     def get_value(self, c_puct):
-        self.u = c_puct * self.prior * np.sqrt(self.parent.n_visits) / (1 + self.n_visits)
+        if self.parent is not None and self.parent.is_root() and not self.deterministic:
+            prior = 0.75 * self.prior + 0.25 * self.noise
+        else:
+            prior = self.prior
+        self.u = c_puct * prior * np.sqrt(self.parent.n_visits) / (1 + self.n_visits)
         return self.Q + self.u
     
     def is_leaf(self):
@@ -74,10 +81,17 @@ class TreeNode:
     
 class MCTS:
     def __init__(self, policy_value_fn, c_puct=1, n_playout=10000):
-        self.root = TreeNode(None, 1)
+        self.determinstic = False
+        self.root = TreeNode(None, 1, None, self.determinstic)
         self.policy = policy_value_fn
         self.c_puct = c_puct
         self.n_playout = n_playout
+    
+    def train(self):
+        self.determinstic = False
+    
+    def eval(self):
+        self.determinstic = True
     
     def select_leaf_node(self, env):
         node = self.root

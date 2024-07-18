@@ -172,15 +172,15 @@ class Game:
                         print('Game end. Draw')
                 return winner
 
-    def start_self_play(self, player, temp=1e-3, first_n_steps=5, show=0, discount=0.99):
+    def start_self_play(self, player, temp=1e-3, first_n_steps=5, show=0, discount=0.99, dirichlet_alpha=0.3):
         self.env.reset()
         states, mcts_probs, current_players = [], [], []
         steps = 0
         while True:
             if steps < first_n_steps:
-                action, probs = player.get_action(self.env, temp=temp)
+                action, probs = player.get_action(self.env, temp, dirichlet_alpha)
             else:
-                action, probs = player.get_action(self.env, temp=1e-3)
+                action, probs = player.get_action(self.env, 1e-3, dirichlet_alpha)
             steps += 1
             states.append(self.env.current_state())
             mcts_probs.append(probs)

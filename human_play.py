@@ -51,17 +51,18 @@ def run():
         # load the provided model (trained in Theano/Lasagne) into a MCTS player written in pure numpy
         policy_value_net = PolicyValueNet(
             0, params, 'cuda')
-        az_player = MCTSPlayer(policy_value_net.policy_value_fn, c_puct=4,
-                                         n_playout=100, is_selfplay=1)  # set larger n_playout for better performance
-
+        az_player = MCTSPlayer(policy_value_net.policy_value_fn, c_puct=5,
+                                         n_playout=500, is_selfplay=0)  # set larger n_playout for better performance
+        az_player.eval()
         # uncomment the following line to play with pure MCTS (it's much weaker even with a larger n_playout)
-        # mcts_player = MCTS_Pure(c_puct=5, n_playout=1000)
+        mcts_player = MCTS_Pure(c_puct=5, n_playout=500)
 
         # human player, input your move in the format: 2,3
-        human = Human()
+        # human = Human()
 
         # set start_player=0 for human first
-        game.start_play(az_player, human, show=1)
+        game.start_play(az_player, mcts_player, show=1)
+        # game.start_play(mcts_player, az_player, show=1)
     except KeyboardInterrupt:
         print('\n\rquit')
 
