@@ -10,9 +10,9 @@ import numpy as np
 
 
 class Network(nn.Module):
-    def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu'):
+    def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu', alpha=0.2, alpha_lr=1e-3):
         super().__init__()
-        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(5, 5), padding=(2, 2)),
+        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim, h_dim * 2,
                                               kernel_size=(3, 4)),
@@ -21,7 +21,7 @@ class Network(nn.Module):
                                               kernel_size=(3, 3)),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim * 4, h_dim * 8,
-                                              kernel_size=(2, 2)),
+                                              kernel_size=(4, 4)),
                                     nn.Tanh(),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 8),
@@ -32,7 +32,8 @@ class Network(nn.Module):
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 8, 1),
                                         nn.Tanh())
-
+        self.alpha = nn.Parameter(torch.tensor([[np.log(alpha)]], requires_grad=True))
+        self.alpha_opt = Adam([self.alpha], lr=alpha_lr)
         self.device = device
         self.opt = Adam(self.parameters(), lr=lr, weight_decay=1e-4)
         self.weight_init()
@@ -72,6 +73,7 @@ class PolicyValueNet:
         self.params = params
         self.policy_value_net = Network(lr, 3, 32, 7, device)
         self.opt = self.policy_value_net.opt
+        self.alpha_opt = self.policy_value_net.alpha_opt
         if params:
             self.policy_value_net.load(params)
 
@@ -102,6 +104,7 @@ class PolicyValueNet:
 
     def train_step(self, batch):
         self.policy_value_net.train()
+        alpha = np.exp(self.policy_value_net.alpha.item())
         criterion = nn.KLDivLoss(reduction="batchmean")
         state, prob, value = batch
         self.opt.zero_grad()
@@ -110,9 +113,14 @@ class PolicyValueNet:
         # p_loss = -torch.mean(torch.sum(prob * log_p_pred, 1))
         entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
         p_loss = criterion(log_p_pred, prob)
-        loss = p_loss + v_loss - 0.1 * entropy
+        loss = p_loss + v_loss - alpha * entropy
         loss.backward()
         self.opt.step()
+        target = -np.log(1 / 7) * 0.4
+        alpha_loss = torch.exp(self.policy_value_net.alpha) * (entropy.item() - target)
+        self.alpha_opt.zero_grad()
+        alpha_loss.backward()
+        self.alpha_opt.step()
         self.policy_value_net.eval()
         return loss.item(), entropy.item()
 
