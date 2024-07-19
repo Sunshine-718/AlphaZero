@@ -9,6 +9,13 @@ from torch.optim import Adam
 import numpy as np
 
 
+def cal_target_entropy(state):
+    board = state[:, 0] + state[:, 1]
+    n = [torch.sum(torch.logical_not((i == 1).all(dim=0)), None, True) for i in board]
+    n = torch.concat(n)
+    return -torch.mean(torch.log(n + 1e-8))
+
+
 class Network(nn.Module):
     def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu', alpha=0.2, alpha_lr=1e-3):
         super().__init__()
@@ -32,7 +39,8 @@ class Network(nn.Module):
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 8, 1),
                                         nn.Tanh())
-        self.alpha = nn.Parameter(torch.tensor([[np.log(alpha)]], requires_grad=True))
+        self.alpha = nn.Parameter(torch.tensor(
+            [[np.log(alpha)]], requires_grad=True))
         self.alpha_opt = Adam([self.alpha], lr=alpha_lr)
         self.device = device
         self.opt = Adam(self.parameters(), lr=lr, weight_decay=1e-4)
@@ -116,8 +124,10 @@ class PolicyValueNet:
         loss = p_loss + v_loss - alpha * entropy
         loss.backward()
         self.opt.step()
-        target = -np.log(1 / 7) * 0.4
-        alpha_loss = torch.exp(self.policy_value_net.alpha) * (entropy.item() - target)
+        with torch.no_grad():
+            target_entropy = cal_target_entropy(state)
+            factor = entropy.view(1, -1) - target_entropy.view(1, -1)
+        alpha_loss = torch.exp(self.policy_value_net.alpha) * factor
         self.alpha_opt.zero_grad()
         alpha_loss.backward()
         self.alpha_opt.step()

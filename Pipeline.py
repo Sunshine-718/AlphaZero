@@ -94,7 +94,7 @@ class TrainPipeline:
         explained_var_new = (
             1 - np.var(batch[-1].cpu().numpy().flatten() - new_v.flatten()) / np.var(batch[-1].cpu().numpy().flatten()))
         alpha = self.policy_value_net.policy_value_net.alpha.item()
-        print(f'kl: {kl: .5f}\nalpha: {np.exp(alpha): .5f}\nlr_multiplier: {self.lr_multiplier: .3f}\nexplained_var_old: {explained_var_old: .3f}\nexplain_var_new: {explained_var_new: .3f}')
+        print(f'kl: {kl: .5f}\nalpha: {np.exp(alpha): .5f}\nlog(alpha): {alpha: .5f}\nlr_multiplier: {self.lr_multiplier: .3f}\nexplained_var_old: {explained_var_old: .3f}\nexplain_var_new: {explained_var_new: .3f}')
         return np.mean(loss), np.mean(entropy)
 
     def policy_evaluate(self, n_games=12):
