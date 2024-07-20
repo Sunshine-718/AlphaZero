@@ -54,18 +54,15 @@ class TreeNode:
                 self.children[action] = TreeNode(self, prior, noise[idx], self.deterministic)
     
     def select(self, c_puct):
-        return max(self.children.items(), key=lambda action_node: action_node[1].get_value(c_puct))
+        return max(self.children.items(), key=lambda action_node: action_node[1].ucb1(c_puct))
     
     def update(self, leaf_value):
+        if self.parent:
+            self.parent.update(-leaf_value)
         self.n_visits += 1
         self.Q += (leaf_value - self.Q) / self.n_visits
     
-    def update_recursive(self, leaf_value):
-        if self.parent:
-            self.parent.update_recursive(-leaf_value)
-        self.update(leaf_value)
-    
-    def get_value(self, c_puct):
+    def ucb1(self, c_puct):
         if self.parent is not None and self.parent.is_root() and not self.deterministic:
             prior = 0.75 * self.prior + 0.25 * self.noise
         else:
@@ -107,7 +104,7 @@ class MCTS:
         action_probs, leaf_value = self.policy(env)
         if not env.done():
             node.expand(action_probs)
-        node.update_recursive(-leaf_value)
+        node.update(-leaf_value)
     
     def get_action(self, env):
         for _ in range(self.n_playout):
