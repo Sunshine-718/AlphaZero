@@ -120,9 +120,6 @@ class MCTS:
             self.root.parent = None
         else:
             self.root = TreeNode(None, 1)
-    
-    def __str__(self) -> str:
-        return "MCTS"
 
 class MCTSPlayer:
     def __init__(self, c_puct=1, n_playout=2000):
@@ -142,6 +139,3 @@ class MCTSPlayer:
             return action
         else:
             print('Warning: the board is full')
-        
-    def __str__(self) -> str:
-        return f'MCTS {self.player}'

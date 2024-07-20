@@ -91,13 +91,9 @@ class PolicyValueNet:
         self.policy_value_net.eval()
         valid = env.valid_move()
         current_state = np.ascontiguousarray(env.current_state())
-        with torch.no_grad():
-            log_p, value = self.policy_value_net(
-                torch.from_numpy(current_state).float().to(self.device))
-            probs = np.exp(log_p.cpu().numpy().flatten())
-            value = value.item()
+        probs, value = self.policy_value(torch.from_numpy(current_state).float().to(self.device))
         action_probs = list(zip(valid, probs[valid]))
-        return action_probs, value
+        return action_probs, value[0, 0]
 
     def train_step(self, batch):
         self.policy_value_net.train()

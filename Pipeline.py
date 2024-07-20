@@ -11,22 +11,9 @@ from MCTS_AZ import AlphaZeroPlayer
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from tqdm.auto import tqdm
-from utils import inspect
+from utils import inspect, symmetric_state, set_learning_rate
 
 torch.set_float32_matmul_precision('high')
-
-
-def symmetric_state(state):
-    state = deepcopy(state)
-    for idx, i in enumerate(state[0]):
-        state[0, idx] = np.fliplr(i)
-    return state
-
-
-def set_learning_rate(optimizer, lr):
-    """Sets the learning rate to the given value"""
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
 
 
 class TrainPipeline:
@@ -93,8 +80,25 @@ class TrainPipeline:
             1 - np.var(batch[-1].cpu().numpy().flatten() - old_v.flatten()) / np.var(batch[-1].cpu().numpy().flatten()))
         explained_var_new = (
             1 - np.var(batch[-1].cpu().numpy().flatten() - new_v.flatten()) / np.var(batch[-1].cpu().numpy().flatten()))
-        print(f'kl: {kl: .5f}\nlr_multiplier: {self.lr_multiplier: .3f}\nexplained_var_old: {explained_var_old: .3f}\nexplained_var_new: {explained_var_new: .3f}')
+        print(f'kl: {kl: .5f}\nlr_multiplier: {self.lr_multiplier: .3f}\nexplained_var_old: {
+              explained_var_old: .3f}\nexplained_var_new: {explained_var_new: .3f}')
         return np.mean(loss), np.mean(entropy)
+
+    def generate_eval_result(self, win_counter, n_games):
+        win_ratio = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
+                     (win_counter['Xdraw'] + win_counter['Odraw'])) / n_games
+        X_win_rate = (
+            win_counter['Xwin'] + win_counter['Xdraw'] * 0.5) / (n_games // 2) * 100
+        O_win_rate = (
+            win_counter['Owin'] + win_counter['Odraw'] * 0.5) / (n_games // 2) * 100
+        eval_res = (f"num_playouts: {self.pure_mcts_n_playout}\n"
+                    f"\tX: win: {win_counter['Xwin']}, draw: {win_counter['Xdraw']}, lose: {
+                        win_counter['Xlose']}, win rate: {X_win_rate: .2f}%\n"
+                    f"\tO: win: {win_counter['Owin']}, draw: {win_counter['Odraw']}, lose: {
+                        win_counter['Olose']}, win rate: {O_win_rate: .2f}%\n"
+                    f"\ttotal:\n"
+                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_ratio * 100: .2f}%\n")
+        return eval_res, win_ratio
 
     def policy_evaluate(self, n_games=12):
         self.policy_value_net.policy_value_net.eval()
@@ -106,41 +110,21 @@ class TrainPipeline:
         mcts_player = MCTSPlayer(5, self.pure_mcts_n_playout)
         win_counter = {'Xwin': 0, 'Xdraw': 0, 'Xlose': 0,
                        'Owin': 0, 'Odraw': 0, 'Olose': 0}
-        iterator = tqdm(range(n_games // 2))
-        iterator.set_description('Evaluating policy X...')
-        for _ in iterator:
-            winner = self.game.start_play(
-                player1=current_az_player, player2=mcts_player, show=0)
-            if winner != 0:
-                if winner == 1:
-                    win_counter['Xwin'] += 1
+        players = [current_az_player, mcts_player]
+        for i in ('X', 'O'):
+            iterator = tqdm(range(n_games // 2))
+            iterator.set_description(f'Evaluating policy {i}...')
+            for _ in iterator:
+                winner = self.game.start_play(players[0], players[1], show=0)
+                if winner != 0:
+                    if winner == 1:
+                        win_counter[f'{i}win'] += 1
+                    else:
+                        win_counter[f'{i}lose'] += 1
                 else:
-                    win_counter['Xlose'] += 1
-            else:
-                win_counter['Xdraw'] += 1
-        iterator = tqdm(range(n_games // 2))
-        iterator.set_description('Evaluating policy O...')
-        for _ in iterator:
-            winner = self.game.start_play(
-                player1=mcts_player, player2=current_az_player, show=0)
-            if winner != 0:
-                if winner == -1:
-                    win_counter['Owin'] += 1
-                else:
-                    win_counter['Olose'] += 1
-            else:
-                win_counter['Odraw'] += 1
-        win_ratio = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
-                     (win_counter['Xdraw'] + win_counter['Odraw'])) / n_games
-        X_win_rate = (
-            win_counter['Xwin'] + win_counter['Xdraw'] * 0.5) / (n_games // 2) * 100
-        O_win_rate = (
-            win_counter['Owin'] + win_counter['Odraw'] * 0.5) / (n_games // 2) * 100
-        eval_res = (f"num_playouts: {self.pure_mcts_n_playout}\n"
-                    f"\tX: win: {win_counter['Xwin']}, draw: {win_counter['Xdraw']}, lose: {win_counter['Xlose']}, win rate: {X_win_rate: .2f}%\n"
-                    f"\tO: win: {win_counter['Owin']}, draw: {win_counter['Odraw']}, lose: {win_counter['Olose']}, win rate: {O_win_rate: .2f}%\n"
-                    f"\ttotal:\n"
-                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_ratio * 100: .2f}%\n")
+                    win_counter[f'{i}draw'] += 1
+            players = list(reversed(players))
+        eval_res, win_ratio = self.generate_eval_result(win_counter, n_games)
         print(eval_res, end='')
         with open(self.record, mode='a+') as f:
             f.write(eval_res)

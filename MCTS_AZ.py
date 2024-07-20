@@ -44,14 +44,8 @@ class AlphaZeroPlayer:
     def eval(self):
         self.mcts.eval()
     
-    def set_player_ind(self, p):
-        self.player = p
-    
     def reset_player(self):
         self.mcts.update_with_move(-1)
-    
-    def __str__(self):
-        return f'MCTS {self.player}'
     
     def get_action(self, env, temp=1e-3, dirichlet_alpha=0.3):
         valid = env.valid_move()

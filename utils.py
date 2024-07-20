@@ -6,6 +6,19 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from numba import jit
+from copy import deepcopy
+
+
+def symmetric_state(state):
+    state = deepcopy(state)
+    for idx, i in enumerate(state[0]):
+        state[0, idx] = np.fliplr(i)
+    return state
+
+
+def set_learning_rate(optimizer, lr):
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
 
 
 @jit(nopython=True)
