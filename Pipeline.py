@@ -103,9 +103,9 @@ class TrainPipeline:
                                             self.c_puct,
                                             self.n_playout)
         current_az_player.eval()
-        mcts_player = MCTSPlayer(1, self.pure_mcts_n_playout)
+        mcts_player = MCTSPlayer(5, self.pure_mcts_n_playout)
         win_counter = {'Xwin': 0, 'Xdraw': 0, 'Xlose': 0,
-                       'Owin': 0, 'Odraw': 0, 'Olose': 0, }
+                       'Owin': 0, 'Odraw': 0, 'Olose': 0}
         iterator = tqdm(range(n_games // 2))
         iterator.set_description('Evaluating policy X...')
         for _ in iterator:
@@ -159,18 +159,22 @@ class TrainPipeline:
                     f'batch i: {i + 1}, episode_len: {self.episode_len}, loss: {loss: .8f}, entropy: {entropy: .8f}')
                 if (i) % self.check_freq == 0:
                     print(f'current self-play batch: {i + 1}')
-                    win_ratio = self.policy_evaluate()
-                    self.policy_value_net.save(current)
-                    if win_ratio > self.best_win_ratio:
-                        print('New best policy!!')
-                        self.best_win_ratio = win_ratio
-                        self.policy_value_net.save(best)
-                        if (self.best_win_ratio == 1.0 and self.pure_mcts_n_playout < 5000):
-                            self.pure_mcts_n_playout += 10
-                            self.best_win_ratio = 0
-                        elif (win_ratio == 0 and self.pure_mcts_n_playout > 10):
-                            self.pure_mcts_n_playout -= 10
-                            self.best_win_ratio = 0
+                    while True:
+                        win_ratio = self.policy_evaluate()
+                        self.policy_value_net.save(current)
+                        if win_ratio > self.best_win_ratio:
+                            print('New best policy!!')
+                            self.best_win_ratio = win_ratio
+                            self.policy_value_net.save(best)
+                            if (self.best_win_ratio == 1.0 and self.pure_mcts_n_playout < 5000):
+                                self.pure_mcts_n_playout += 10
+                                self.best_win_ratio = 0
+                                continue
+                            elif (win_ratio == 0 and self.pure_mcts_n_playout > 10):
+                                self.pure_mcts_n_playout -= 10
+                                self.best_win_ratio = 0
+                        if win_ratio != 1.0:
+                            break
         except KeyboardInterrupt:
             print('\n\rquit')
 
