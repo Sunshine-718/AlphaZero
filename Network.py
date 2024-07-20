@@ -51,14 +51,19 @@ class Network(nn.Module):
 
     def save(self, path=None):
         if path is not None:
+            self.cpu()
             torch.save(self.state_dict(), path)
+            self.to(self.device)
 
     def load(self, path=None):
         if path is not None:
             try:
+                self.cpu()
                 self.load_state_dict(torch.load(path))
+                self.to(self.device)
             except Exception as e:
                 print(f'failed to load parameters\n{e}')
+                self.to(self.device)
 
     def forward(self, x):
         hidden = self.hidden(x)
@@ -69,54 +74,53 @@ class PolicyValueNet:
     def __init__(self, lr, params=None, device='cpu'):
         self.device = device
         self.params = params
-        self.policy_value_net = Network(lr, 3, 32, 7, device)
-        self.opt = self.policy_value_net.opt
+        self.net = Network(lr, 3, 32, 7, device)
+        self.opt = self.net.opt
         if params:
-            self.policy_value_net.load(params)
+            self.net.load(params)
 
     def train(self):
-        self.policy_value_net.train()
+        self.net.train()
 
     def eval(self):
-        self.policy_value_net.eval()
+        self.net.eval()
 
     def policy_value(self, state):
-        self.policy_value_net.eval()
+        self.net.eval()
         with torch.no_grad():
-            log_p, value = self.policy_value_net(state)
+            log_p, value = self.net(state)
             probs = np.exp(log_p.cpu().numpy())
         return probs, value.cpu().numpy()
 
     def policy_value_fn(self, env):
-        self.policy_value_net.eval()
+        self.net.eval()
         valid = env.valid_move()
-        current_state = np.ascontiguousarray(env.current_state())
-        probs, value = self.policy_value(torch.from_numpy(current_state).float().to(self.device))
+        current_state = torch.from_numpy(env.current_state()).float().to(self.device)
+        probs, value = self.policy_value(current_state)
         action_probs = list(zip(valid, probs[valid]))
-        return action_probs, value[0, 0]
+        return action_probs, value.flatten()[0]
 
     def train_step(self, batch):
-        self.policy_value_net.train()
+        self.net.train()
         criterion = nn.KLDivLoss(reduction="batchmean")
         state, prob, value = batch
         self.opt.zero_grad()
-        log_p_pred, value_pred = self.policy_value_net(state)
+        log_p_pred, value_pred = self.net(state)
         v_loss = F.smooth_l1_loss(value_pred, value)
-        # p_loss = -torch.mean(torch.sum(prob * log_p_pred, 1))
         entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
         p_loss = criterion(log_p_pred, prob)
         loss = p_loss + v_loss
         loss.backward()
         self.opt.step()
-        self.policy_value_net.eval()
+        self.net.eval()
         return loss.item(), entropy.item()
 
     def save(self, params=None):
         if params is None:
             params = self.params
-        self.policy_value_net.save(params)
+        self.net.save(params)
 
     def load(self, params=None):
         if params is None:
             params = self.params
-        self.policy_value_net.load(params)
+        self.net.load(params)
