@@ -112,10 +112,7 @@ class MCTS:
     def get_action(self, env):
         for _ in range(self.n_playout):
             self.playout(deepcopy(env))
-        try:
-            return max(self.root.children.items(), key=lambda action_node: action_node[1].n_visits)
-        except ValueError:
-            raise ValueError
+        return max(self.root.children.items(), key=lambda action_node: action_node[1].n_visits)
     
     def update_with_move(self, last_move):
         if last_move in self.root.children:
@@ -128,7 +125,7 @@ class MCTS:
         return "MCTS"
 
 class MCTSPlayer:
-    def __init__(self, c_puct=1, n_playout=2000) -> None:
+    def __init__(self, c_puct=1, n_playout=2000):
         self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
     
     def set_player_ind(self, p):
