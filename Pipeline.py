@@ -11,7 +11,7 @@ from MCTS_AZ import AlphaZeroPlayer
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from tqdm.auto import tqdm
-from inspector import inspect
+from utils import inspect
 
 torch.set_float32_matmul_precision('high')
 
