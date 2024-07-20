@@ -9,13 +9,6 @@ from torch.optim import Adam
 import numpy as np
 
 
-def cal_target_entropy(state):
-    board = state[:, 0] + state[:, 1]
-    n = [torch.sum(torch.logical_not((i == 1).all(dim=0)), None, True) for i in board]
-    n = torch.concat(n)
-    return torch.mean(torch.log(n + 1e-8))
-
-
 class Network(nn.Module):
     def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu'):
         super().__init__()
@@ -131,8 +124,3 @@ class PolicyValueNet:
         if params is None:
             params = self.params
         self.policy_value_net.load(params)
-
-
-if __name__ == '__main__':
-
-    pass

@@ -145,7 +145,3 @@ class MCTSPlayer:
         
     def __str__(self) -> str:
         return f'MCTS {self.player}'
-
-if __name__ == '__main__':
-
-    pass

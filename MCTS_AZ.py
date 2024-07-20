@@ -69,8 +69,4 @@ class AlphaZeroPlayer:
             return action, action_probs
         else:
             print('WARNING: the board is full')
-
-
-if __name__ == '__main__':
-    
-    pass
+            

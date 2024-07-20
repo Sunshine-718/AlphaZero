@@ -57,8 +57,3 @@ class ReplayBuffer:
         dataset = TensorDataset(self.state[:self.__len__(
         )], self.action[:self.__len__()], self.value[:self.__len__()])
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-
-if __name__ == '__main__':
-
-    pass
