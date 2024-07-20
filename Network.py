@@ -13,11 +13,11 @@ def cal_target_entropy(state):
     board = state[:, 0] + state[:, 1]
     n = [torch.sum(torch.logical_not((i == 1).all(dim=0)), None, True) for i in board]
     n = torch.concat(n)
-    return -torch.mean(torch.log(n + 1e-8))
+    return torch.mean(torch.log(n + 1e-8))
 
 
 class Network(nn.Module):
-    def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu', alpha=0.2, alpha_lr=1e-3):
+    def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
                                     nn.SiLU(True),
@@ -40,8 +40,7 @@ class Network(nn.Module):
                                         nn.Linear(h_dim * 8, 1),
                                         nn.Tanh())
         self.alpha = nn.Parameter(torch.tensor(
-            [[np.log(alpha)]], requires_grad=True))
-        self.alpha_opt = Adam([self.alpha], lr=alpha_lr)
+            [[np.log(0.05)]], requires_grad=True))
         self.device = device
         self.opt = Adam(self.parameters(), lr=lr, weight_decay=1e-4)
         self.weight_init()
@@ -81,7 +80,6 @@ class PolicyValueNet:
         self.params = params
         self.policy_value_net = Network(lr, 3, 32, 7, device)
         self.opt = self.policy_value_net.opt
-        self.alpha_opt = self.policy_value_net.alpha_opt
         if params:
             self.policy_value_net.load(params)
 
@@ -112,7 +110,6 @@ class PolicyValueNet:
 
     def train_step(self, batch):
         self.policy_value_net.train()
-        alpha = np.exp(self.policy_value_net.alpha.item())
         criterion = nn.KLDivLoss(reduction="batchmean")
         state, prob, value = batch
         self.opt.zero_grad()
@@ -121,15 +118,9 @@ class PolicyValueNet:
         # p_loss = -torch.mean(torch.sum(prob * log_p_pred, 1))
         entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
         p_loss = criterion(log_p_pred, prob)
-        loss = p_loss + v_loss - alpha * entropy
+        loss = p_loss + v_loss
         loss.backward()
         self.opt.step()
-        with torch.no_grad():
-            target_entropy = cal_target_entropy(state)
-            factor = entropy.view(1, -1) - target_entropy.view(1, -1)
-        alpha_loss = torch.exp(self.policy_value_net.alpha) * factor
-        self.alpha_opt.zero_grad()
-        alpha_loss.backward()
         self.alpha_opt.step()
         self.policy_value_net.eval()
         return loss.item(), entropy.item()
