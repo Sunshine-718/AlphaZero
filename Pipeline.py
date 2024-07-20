@@ -94,7 +94,7 @@ class TrainPipeline:
         explained_var_new = (
             1 - np.var(batch[-1].cpu().numpy().flatten() - new_v.flatten()) / np.var(batch[-1].cpu().numpy().flatten()))
         print(f'kl: {kl: .5f}\nlr_multiplier: {self.lr_multiplier: .3f}\nexplained_var_old: {explained_var_old: .3f}\nexplain_var_new: {explained_var_new: .3f}')
-        return np.mean(loss), np.mean(entropy), res[2]
+        return np.mean(loss), np.mean(entropy)
 
     def policy_evaluate(self, n_games=12):
         self.policy_value_net.policy_value_net.eval()
@@ -152,11 +152,11 @@ class TrainPipeline:
         try:
             for i in range(self.game_batch_num):
                 self.collect_selfplay_data(self.play_batch_size)
-                loss, entropy, target_entropy = float('inf'), float('inf'), float('inf')
+                loss, entropy = float('inf'), float('inf')
                 if len(self.buffer) > self.batch_size * 10:
-                    loss, entropy, target_entropy = self.policy_update()
+                    loss, entropy = self.policy_update()
                 print(
-                    f'batch i: {i + 1}, episode_len: {self.episode_len}, loss: {loss: .8f}, entropy: {entropy: .8f}, target_entropy: {target_entropy: .8f}')
+                    f'batch i: {i + 1}, episode_len: {self.episode_len}, loss: {loss: .8f}, entropy: {entropy: .8f}')
                 if (i) % self.check_freq == 0:
                     print(f'current self-play batch: {i + 1}')
                     win_ratio = self.policy_evaluate()

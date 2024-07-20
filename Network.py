@@ -39,8 +39,6 @@ class Network(nn.Module):
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 8, 1),
                                         nn.Tanh())
-        self.alpha = nn.Parameter(torch.tensor(
-            [[np.log(0.05)]], requires_grad=True))
         self.device = device
         self.opt = Adam(self.parameters(), lr=lr, weight_decay=1e-4)
         self.weight_init()
@@ -121,7 +119,6 @@ class PolicyValueNet:
         loss = p_loss + v_loss
         loss.backward()
         self.opt.step()
-        self.alpha_opt.step()
         self.policy_value_net.eval()
         return loss.item(), entropy.item()
 

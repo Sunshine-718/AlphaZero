@@ -6,7 +6,6 @@ from env import Env, board_to_state
 from copy import deepcopy
 import torch
 import torch.nn.functional as F
-from tqdm.auto import tqdm
 import numpy as np
 from copy import deepcopy
 from Network import Network
@@ -26,13 +25,14 @@ def print_row(action, probX, probO, max_X, max_O):
     print(f'action: {action}, prob_O: {probO * 100: 02.2f}%')
 
 
-def inspect(net):
-    board = np.array([[0, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 0, 0, 0],
-                      [0, 0, 0, 0, 0, 0, 0]])
+def inspect(net, board=None):
+    if board is None:
+        board = np.array([[0, 0, 0, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 0]])
     state0 = torch.from_numpy(board_to_state(
         board, 0)).float().cuda()
     p0, v0 = net(state0)
