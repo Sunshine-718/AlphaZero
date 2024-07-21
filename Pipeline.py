@@ -116,7 +116,7 @@ class TrainPipeline:
                        'Owin': 0, 'Odraw': 0, 'Olose': 0}
         win_counter = self.evaluate_policy('Evaluating policy X...', current_az_player, mcts_player, win_counter, 'Xwin', 'Xlose', 'Xdraw', n_games)
         win_counter = self.evaluate_policy('Evaluating policy O...', mcts_player, current_az_player, win_counter, 'Owin', 'Olose', 'Odraw', n_games)
-        win_ratio = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
+        win_rate = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
                      (win_counter['Xdraw'] + win_counter['Odraw'])) / n_games
         X_win_rate = (
             win_counter['Xwin'] + win_counter['Xdraw'] * 0.5) / (n_games // 2) * 100
@@ -126,11 +126,11 @@ class TrainPipeline:
                     f"\tX: win: {win_counter['Xwin']}, draw: {win_counter['Xdraw']}, lose: {win_counter['Xlose']}, win rate: {X_win_rate: .2f}%\n"
                     f"\tO: win: {win_counter['Owin']}, draw: {win_counter['Odraw']}, lose: {win_counter['Olose']}, win rate: {O_win_rate: .2f}%\n"
                     f"\ttotal:\n"
-                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_ratio * 100: .2f}%\n")
+                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_rate * 100: .2f}%\n")
         print(eval_res, end='')
         with open(self.record, mode='a+') as f:
             f.write(eval_res)
-        return win_ratio
+        return win_rate
 
     def run(self):
         current = f'{self.params}/{self.name}_current.pt'
@@ -146,18 +146,18 @@ class TrainPipeline:
                 continue
             print(f'current self-play batch: {i + 1}')
             while True:
-                win_ratio = self.policy_evaluate()
+                win_rate = self.policy_evaluate()
                 self.policy_value_net.save(current)
-                if win_ratio > self.best_win_ratio:
+                if win_rate > self.best_win_rate:
                     print('New best policy!!')
-                    self.best_win_ratio = win_ratio
+                    self.best_win_rate = win_rate
                     self.policy_value_net.save(best)
-                    if (self.best_win_ratio == 1.0 and self.pure_mcts_n_playout < 5000):
+                    if (self.best_win_rate == 1.0 and self.pure_mcts_n_playout < 5000):
                         self.pure_mcts_n_playout += 10
-                        self.best_win_ratio = 0
+                        self.best_win_rate = 0
                         continue
-                    elif (win_ratio == 0 and self.pure_mcts_n_playout > 10):
+                    elif (win_rate == 0 and self.pure_mcts_n_playout > 10):
                         self.pure_mcts_n_playout -= 10
-                        self.best_win_ratio = 0
-                if win_ratio != 1.0:
+                        self.best_win_rate = 0
+                if win_rate != 1.0:
                     break
