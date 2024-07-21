@@ -88,17 +88,21 @@ class TrainPipeline:
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
         return np.mean(loss), np.mean(entropy)
+    
+    def evaluation(self, description, player1, player2, win_counter, win_key, lose_key, draw_key, n_games):
+        iterator = tqdm(range(n_games // 2))
+        iterator.set_description(description)
+        for _ in iterator:
+            winner = self.game.start_play(player1=player1, player2=player2, show=0)
+            if winner != 0:
+                if winner == 1:
+                    win_counter[win_key] += 1
+                else:
+                    win_counter[lose_key] += 1
+            else:
+                win_counter[draw_key] += 1
+        return win_counter
 
-    def generate_eval_result(self, win_counter, n_games):
-        X_win_rate = (win_counter['Xwin'] + win_counter['Xdraw'] * 0.5) / (n_games // 2) * 100
-        O_win_rate = (win_counter['Owin'] + win_counter['Odraw'] * 0.5) / (n_games // 2) * 100
-        win_ratio = (X_win_rate + O_win_rate) / 200
-        eval_res = (f"num_playouts: {self.pure_mcts_n_playout}\n"
-                    f"\tX: win: {win_counter['Xwin']}, draw: {win_counter['Xdraw']}, lose: {win_counter['Xlose']}, win rate: {X_win_rate: .2f}%\n"
-                    f"\tO: win: {win_counter['Owin']}, draw: {win_counter['Odraw']}, lose: {win_counter['Olose']}, win rate: {O_win_rate: .2f}%\n"
-                    f"\ttotal:\n"
-                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_ratio * 100: .2f}%\n")
-        return eval_res, win_ratio
 
     def policy_evaluate(self, n_games=12):
         self.policy_value_net.eval()
@@ -110,21 +114,19 @@ class TrainPipeline:
         mcts_player = MCTSPlayer(5, self.pure_mcts_n_playout)
         win_counter = {'Xwin': 0, 'Xdraw': 0, 'Xlose': 0,
                        'Owin': 0, 'Odraw': 0, 'Olose': 0}
-        players = [current_az_player, mcts_player]
-        for i in ('X', 'O'):
-            iterator = tqdm(range(n_games // 2))
-            iterator.set_description(f'Evaluating policy {i}...')
-            for _ in iterator:
-                winner = self.game.start_play(players[0], players[1], show=0)
-                if winner != 0:
-                    if winner == 1:
-                        win_counter[f'{i}win'] += 1
-                    else:
-                        win_counter[f'{i}lose'] += 1
-                else:
-                    win_counter[f'{i}draw'] += 1
-            players = list(reversed(players))
-        eval_res, win_ratio = self.generate_eval_result(win_counter, n_games)
+        win_counter = self.evaluate_policy('Evaluating policy X...', current_az_player, mcts_player, win_counter, 'Xwin', 'Xlose', 'Xdraw', n_games)
+        win_counter = self.evaluate_policy('Evaluating policy O...', mcts_player, current_az_player, win_counter, 'Owin', 'Olose', 'Odraw', n_games)
+        win_ratio = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
+                     (win_counter['Xdraw'] + win_counter['Odraw'])) / n_games
+        X_win_rate = (
+            win_counter['Xwin'] + win_counter['Xdraw'] * 0.5) / (n_games // 2) * 100
+        O_win_rate = (
+            win_counter['Owin'] + win_counter['Odraw'] * 0.5) / (n_games // 2) * 100
+        eval_res = (f"num_playouts: {self.pure_mcts_n_playout}\n"
+                    f"\tX: win: {win_counter['Xwin']}, draw: {win_counter['Xdraw']}, lose: {win_counter['Xlose']}, win rate: {X_win_rate: .2f}%\n"
+                    f"\tO: win: {win_counter['Owin']}, draw: {win_counter['Odraw']}, lose: {win_counter['Olose']}, win rate: {O_win_rate: .2f}%\n"
+                    f"\ttotal:\n"
+                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_ratio * 100: .2f}%\n")
         print(eval_res, end='')
         with open(self.record, mode='a+') as f:
             f.write(eval_res)
