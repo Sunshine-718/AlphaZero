@@ -22,8 +22,6 @@ pip install torch
 [Connect Four - Wikipedia](https://en.wikipedia.org/wiki/Connect_Four)
 
 
-## 展望
-### 目前的问题  
-网络的value head输出是正确值的负数，待修改  
-### 未来目标
-开发异步MCTS算法
+## Future works
+1. Fix the negative leaf value problem in env.py, MCTS.py and MCTS_AZ.py
+2. Implement MCTS in parallel. 
