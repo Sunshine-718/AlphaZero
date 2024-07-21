@@ -17,9 +17,9 @@ pip install torch
 ```
 
 ## References
-[Silver, D., Schrittwieser, J., Simonyan, K. et al. Mastering the game of Go without human knowledge. Nature 550, 354–359 (2017).](https://doi.org/10.1038/nature24270)
-[David Silver et al. ,A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play.](https://doi.org/10.1126/science.aar6404)
-[Connect Four - Wikipedia](https://en.wikipedia.org/wiki/Connect_Four)
+[Silver, D., Schrittwieser, J., Simonyan, K. et al. Mastering the game of Go without human knowledge. Nature 550, 354–359 (2017).](https://doi.org/10.1038/nature24270)  
+[David Silver et al. ,A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play.](https://doi.org/10.1126/science.aar6404)  
+[Connect Four - Wikipedia](https://en.wikipedia.org/wiki/Connect_Four)  
 
 
 ## Future works
