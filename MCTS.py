@@ -49,7 +49,7 @@ class TreeNode:
     
     def train(self):
         if self.deterministic == True:
-            if not self.children():
+            if not self.children:
                 self.deterministic = False
                 return
             for node in self.children.values():
@@ -58,7 +58,7 @@ class TreeNode:
 
     def eval(self):
         if self.deterministic == False:
-            if not self.children():
+            if not self.children:
                 self.deterministic = True
                 return
             for node in self.children.values():

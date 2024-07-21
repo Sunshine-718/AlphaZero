@@ -32,15 +32,15 @@ class Human(object):
 
 
 def run():
-    params = './params/AlphaZero_best.pt'
+    params = './params/AlphaZero_current.pt'
     try:
         env = Env()
         game = Game(env)
         policy_value_net = PolicyValueNet(0, params, device)
         az_player = MCTSPlayer(policy_value_net.policy_value_fn, c_puct=5,
-                               n_playout=2000, is_selfplay=0)
+                               n_playout=100, is_selfplay=0)
         az_player.eval()
-        mcts_player = MCTS_Pure(c_puct=5, n_playout=5000)
+        mcts_player = MCTS_Pure(c_puct=5, n_playout=1000)
         # human = Human()
 
         game.start_play(az_player, mcts_player, show=1)
