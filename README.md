@@ -1,3 +1,29 @@
 # AlphaZero for Connect Four  
-目前的问题：网络的value head输出是正确值的负数，待修改  
-未来目标：开发异步MCTS算法
+## Environment
+python 3.12.3 64-bit  
+torch 2.3.0  
+
+## How to install dependencies?
+Run the code below on terminal.
+```
+pip install numpy
+pip install numba
+pip install tqdm
+```
+Pytorch official site: [click here](https://pytorch.org)
+If you prefer to run this code beyond cuda device, just simply run the code below to install the cpu version of Pytorch.
+```
+pip install torch
+```
+
+## References
+[Silver, D., Schrittwieser, J., Simonyan, K. et al. Mastering the game of Go without human knowledge. Nature 550, 354–359 (2017).](https://doi.org/10.1038/nature24270)
+[David Silver et al. ,A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play.](https://doi.org/10.1126/science.aar6404)
+[Connect Four - Wikipedia](https://en.wikipedia.org/wiki/Connect_Four)
+
+
+## 展望
+### 目前的问题  
+网络的value head输出是正确值的负数，待修改  
+### 未来目标
+开发异步MCTS算法
