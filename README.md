@@ -10,7 +10,7 @@ pip install numpy
 pip install numba
 pip install tqdm
 ```
-Pytorch official site: [click here](https://pytorch.org)
+Pytorch official site: [click here](https://pytorch.org)  
 If you prefer to run this code beyond cuda device, just simply run the code below to install the cpu version of Pytorch.
 ```
 pip install torch
