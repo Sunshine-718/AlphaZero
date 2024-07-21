@@ -23,7 +23,7 @@ class MCTS_AZ(MCTS):
                 leaf_value = 0
             else:
                 leaf_value = (1 if winner == env.turn else -1)
-        node.update_recursive(-leaf_value)
+        node.update(-leaf_value)
 
     def get_action_visits(self, env, dirichlet_alpha=0.3):
         for _ in range(self.n_playout):

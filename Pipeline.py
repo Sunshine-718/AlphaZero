@@ -140,7 +140,6 @@ class TrainPipeline:
                 loss, entropy = self.policy_update()
             print(f'batch i: {i + 1}, episode_len: {self.episode_len}, '
                   f'loss: {loss: .8f}, entropy: {entropy: .8f}')
-            
             if (i) % self.check_freq != 0:
                 continue
             print(f'current self-play batch: {i + 1}')

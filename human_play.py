@@ -2,10 +2,14 @@
 # -*- coding: utf-8 -*-
 # Written by: Sunshine
 # Created on: 20/Jul/2024  22:31
+import torch
 from env import Env, Game
 from MCTS import MCTSPlayer as MCTS_Pure
 from MCTS_AZ import AlphaZeroPlayer as MCTSPlayer
 from Network import PolicyValueNet
+
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 class Human(object):
@@ -28,16 +32,15 @@ class Human(object):
 
 
 def run():
-    params = './params/current.pt'
+    params = './params/AlphaZero_best.pt'
     try:
         env = Env()
         game = Game(env)
-        policy_value_net = PolicyValueNet(
-            0, params, 'cuda')
+        policy_value_net = PolicyValueNet(0, params, device)
         az_player = MCTSPlayer(policy_value_net.policy_value_fn, c_puct=5,
-                               n_playout=500, is_selfplay=0)
+                               n_playout=2000, is_selfplay=0)
         az_player.eval()
-        mcts_player = MCTS_Pure(c_puct=5, n_playout=500)
+        mcts_player = MCTS_Pure(c_puct=5, n_playout=5000)
         # human = Human()
 
         game.start_play(az_player, mcts_player, show=1)

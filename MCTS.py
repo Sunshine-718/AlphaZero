@@ -37,7 +37,7 @@ def policy_value_fn(env):
 
 
 class TreeNode:
-    def __init__(self, parent, prior, dirichlet_noise=None, deterministic=False):
+    def __init__(self, parent, prior, dirichlet_noise=None):
         self.parent = parent
         self.children = {}
         self.n_visits = 0
@@ -45,13 +45,31 @@ class TreeNode:
         self.u = 0
         self.prior = prior
         self.noise = dirichlet_noise if dirichlet_noise is not None else prior
-        self.deterministic = deterministic
+        self.deterministic = False
+    
+    def train(self):
+        if self.deterministic == True:
+            if not self.children():
+                self.deterministic = False
+                return
+            for node in self.children.values():
+                node.train()
+                self.deterministic = False
+
+    def eval(self):
+        if self.deterministic == False:
+            if not self.children():
+                self.deterministic = True
+                return
+            for node in self.children.values():
+                node.eval()
+                self.deterministic = True
     
     def expand(self, action_probs, noise=None):
         noise = [self.prior for _ in action_probs] if (noise is None or self.deterministic) else noise
         for idx, (action, prior) in enumerate(action_probs):
             if action not in self.children:
-                self.children[action] = TreeNode(self, prior, noise[idx], self.deterministic)
+                self.children[action] = TreeNode(self, prior, noise[idx])
     
     def select(self, c_puct):
         return max(self.children.items(), key=lambda action_node: action_node[1].ucb1(c_puct))
@@ -78,17 +96,16 @@ class TreeNode:
     
 class MCTS:
     def __init__(self, policy_value_fn, c_puct=1, n_playout=10000):
-        self.determinstic = False
-        self.root = TreeNode(None, 1, None, self.determinstic)
+        self.root = TreeNode(None, 1, None)
         self.policy = policy_value_fn
         self.c_puct = c_puct
         self.n_playout = n_playout
     
     def train(self):
-        self.determinstic = False
+        self.root.train()
     
     def eval(self):
-        self.determinstic = True
+        self.root.eval()
     
     def select_leaf_node(self, env):
         node = self.root
@@ -121,9 +138,6 @@ class MCTS:
 class MCTSPlayer:
     def __init__(self, c_puct=1, n_playout=2000):
         self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
-    
-    def set_player_ind(self, p):
-        self.player = p
     
     def reset_player(self):
         self.mcts.update_with_move(-1)

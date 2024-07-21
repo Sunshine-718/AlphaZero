@@ -97,7 +97,7 @@ class PolicyValueNet:
         valid = env.valid_move()
         current_state = torch.from_numpy(env.current_state()).float().to(self.device)
         probs, value = self.policy_value(current_state)
-        action_probs = list(zip(valid, probs[valid]))
+        action_probs = list(zip(valid, probs.flatten()[valid]))
         return action_probs, value.flatten()[0]
 
     def train_step(self, batch):
