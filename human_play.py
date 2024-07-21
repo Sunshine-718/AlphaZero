@@ -40,7 +40,7 @@ def run():
         az_player = MCTSPlayer(policy_value_net.policy_value_fn, c_puct=5,
                                n_playout=100, is_selfplay=0)
         az_player.eval()
-        mcts_player = MCTS_Pure(c_puct=5, n_playout=1000)
+        mcts_player = MCTS_Pure(c_puct=5, n_playout=370)
         # human = Human()
 
         game.start_play(az_player, mcts_player, show=1)
