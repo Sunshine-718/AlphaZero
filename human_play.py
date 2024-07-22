@@ -57,7 +57,7 @@ def run():
             game.start_play(az_player, human, show=1)
         else:
             raise ValueError('You must choose to play as either X or O, or both X and O\n'
-                             f"<usage> python3 human_play.py -x [-o] [-s 100]")
+                             f"<usage> python3 human_play.py -x [-o] [-s {args.s}]")
         # game.start_play(az_player, mcts_player, show=1)
         # game.start_play(mcts_player, az_player, show=1)
     except KeyboardInterrupt:
