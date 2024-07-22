@@ -4,7 +4,7 @@ python 3.12.3 64-bit
 torch 2.3.0  
 
 ## How to install dependencies?
-Run the code below on terminal.
+Run the code below in terminal.
 ``` shell
 pip install numpy
 pip install numba
