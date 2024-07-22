@@ -78,7 +78,7 @@ class TreeNode:
         if self.parent:
             self.parent.update(-leaf_value)
         self.n_visits += 1
-        self.Q += (leaf_value - self.Q) / self.n_visits
+        self.Q += (leaf_value - self.Q) / self.n_visits # Q = ((n-1)*Q_old + leaf_value)/n
     
     def ucb1(self, c_puct):
         if self.parent is not None and self.parent.is_root() and not self.deterministic:
