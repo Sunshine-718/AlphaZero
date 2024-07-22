@@ -32,7 +32,7 @@ class Human(object):
 
 
 def run():
-    params = './params/AlphaZero_current.pt'
+    params = './params/AlphaZero_best.pt'
     try:
         env = Env()
         game = Game(env)
@@ -41,9 +41,10 @@ def run():
                                n_playout=100, is_selfplay=0)
         az_player.eval()
         mcts_player = MCTS_Pure(c_puct=5, n_playout=370)
-        # human = Human()
+        human = Human()
 
-        game.start_play(az_player, mcts_player, show=1)
+        game.start_play(human, mcts_player, show=1)
+        # game.start_play(az_player, mcts_player, show=1)
         # game.start_play(mcts_player, az_player, show=1)
     except KeyboardInterrupt:
         print('\n\rquit')
