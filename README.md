@@ -26,7 +26,8 @@ Optional argument:
 `-s`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 100.
 ## How to train your own AlphaZero?
 Just open `train.ipynb` and run it __after backing up the latest parameter files__.  
-__*IMPORTANT!!!*__: Remember to __back up__ the __latest__ parameter files, if the parameter files corrupted, it will take __several hours to 1 day__, even longer, to retrain the model from scratch, the training procedure is extremely slow!
+__*IMPORTANT!!!*__:  
+Remember to __back up__ the __latest__ parameter files, if the parameter files are corrupted or overwritten, it will take __several hours to 1 day__, even longer, to retrain the model from scratch, the training procedure is extremely slow!
 ## References
 [Silver, D., Schrittwieser, J., Simonyan, K. et al. Mastering the game of Go without human knowledge. Nature 550, 354–359 (2017).](https://doi.org/10.1038/nature24270)  
 
