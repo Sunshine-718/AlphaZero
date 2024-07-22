@@ -20,6 +20,8 @@ pip install torch
 Type one of the command lines below in terminal:  
 ``` shell
 python3 human_play.py -x    # play as X
+```
+``` shell
 python3 human_play.py -o    # play as O
 ```
 and input 0-6 for each column, i.e 0 for the 1st column, 1 for the 2nd column.
