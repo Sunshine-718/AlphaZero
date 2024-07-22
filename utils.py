@@ -122,12 +122,12 @@ def inspect(net, board=None):
                           [0, 0, 0, 0, 0, 0, 0],
                           [0, 0, 0, 0, 0, 0, 0]])
     state0 = torch.from_numpy(board_to_state(
-        board, 0)).float().cuda()
+        board, 1)).float().to(net.device)
     p0, v0 = net(state0)
     probs0 = F.softmax(p0, dim=1).detach().cpu().numpy().flatten()
     value0 = v0.item()
     state1 = torch.from_numpy(board_to_state(
-        board, 1)).float().cuda()
+        board, -1)).float().to(net.device)
     p1, v1 = net(state1)
     probs1 = F.softmax(p1, dim=1).detach().cpu().numpy().flatten()
     value1 = v1.item()
