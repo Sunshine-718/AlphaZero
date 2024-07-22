@@ -24,7 +24,7 @@ python3 human_play.py -x    # play as X
 ``` shell
 python3 human_play.py -o    # play as O
 ```
-and input 0-6 for each column, i.e 0 for the 1st column, 1 for the 2nd column.  
+and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column.  
 Optional argument:  
 `-s`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 100.
 ## How to train your own AlphaZero?
