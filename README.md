@@ -23,5 +23,4 @@ pip install torch
 
 
 ## Future works
-1. Fix the negative leaf value problem in env.py, MCTS.py and MCTS_AZ.py
-2. Implement MCTS in parallel. 
+1. Implement MCTS in parallel. 
