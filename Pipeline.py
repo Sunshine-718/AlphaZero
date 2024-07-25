@@ -11,7 +11,7 @@ from MCTS_AZ import AlphaZeroPlayer
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from tqdm.auto import tqdm
-from utils import inspect, symmetric_state, set_learning_rate
+from utils import inspect, set_learning_rate, instant_augment
 
 torch.set_float32_matmul_precision('high')
 
@@ -36,14 +36,6 @@ class TrainPipeline:
         self.buffer.to(self.policy_value_net.device)
         input('Confirm to continue.')
 
-    def augment_data(self, play_data):
-        extend_data = []
-        for state, prob, winner in play_data:
-            state_ = symmetric_state(state)
-            prob_ = deepcopy(prob[::-1])
-            extend_data.append((state_, prob_, winner))
-        return extend_data
-
     def collect_selfplay_data(self, n_games=1):
         self.az_player.train()
         with torch.no_grad():
@@ -52,7 +44,6 @@ class TrainPipeline:
                     self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
                 play_data = list(play_data)[:]
                 self.episode_len = len(play_data)
-                play_data.extend(self.augment_data(play_data))
                 for data in play_data:
                     self.buffer.store(*data)
 
@@ -64,6 +55,7 @@ class TrainPipeline:
     def policy_update(self):
         loss, entropy = [], []
         batch = self.buffer.sample(self.batch_size)
+        batch = instant_augment(batch)
         old_probs, old_v = self.policy_value_net.policy_value(batch[0])
         for _ in range(self.epochs):
             set_learning_rate(self.policy_value_net.opt,
@@ -114,8 +106,8 @@ class TrainPipeline:
         mcts_player = MCTSPlayer(5, self.pure_mcts_n_playout)
         win_counter = {'Xwin': 0, 'Xdraw': 0, 'Xlose': 0,
                        'Owin': 0, 'Odraw': 0, 'Olose': 0}
-        win_counter = self.evaluate_policy('Evaluating policy X...', current_az_player, mcts_player, win_counter, 'Xwin', 'Xlose', 'Xdraw', n_games)
-        win_counter = self.evaluate_policy('Evaluating policy O...', mcts_player, current_az_player, win_counter, 'Owin', 'Olose', 'Odraw', n_games)
+        win_counter = self.evaluation('Evaluating policy X...', current_az_player, mcts_player, win_counter, 'Xwin', 'Xlose', 'Xdraw', n_games)
+        win_counter = self.evaluation('Evaluating policy O...', mcts_player, current_az_player, win_counter, 'Owin', 'Olose', 'Odraw', n_games)
         win_rate = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
                      (win_counter['Xdraw'] + win_counter['Odraw'])) / n_games
         X_win_rate = (

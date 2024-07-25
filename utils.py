@@ -9,6 +9,18 @@ from numba import jit
 from copy import deepcopy
 
 
+def instant_augment(batch):
+    state, prob, value = deepcopy(batch)
+    for idx, i in enumerate(state):
+        for idx_j, j in enumerate(i):
+            state[idx, idx_j] = torch.fliplr(j)
+        prob[[idx]] = torch.fliplr(prob[[idx]])
+    state = torch.concat([state, batch[0]])
+    prob = torch.concat([prob, batch[1]])
+    value = torch.concat([value, batch[2]])
+    return state, prob, value
+
+
 def symmetric_state(state):
     state = deepcopy(state)
     for idx, i in enumerate(state[0]):
@@ -134,8 +146,3 @@ def inspect(net, board=None):
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
         print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
     print(f'State-value X: {value0: .4f}, State-value O: {value1: .4f}')
-
-
-if __name__ == '__main__':
-
-    pass
