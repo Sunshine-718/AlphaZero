@@ -39,7 +39,7 @@ class Human(object):
 
 
 def run():
-    params = './params/AlphaZero2_current.pt'
+    params = './params/AlphaZero_current.pt'
     try:
         env = Env()
         game = Game(env)

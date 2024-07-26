@@ -24,6 +24,7 @@ class TrainPipeline:
         self.params = './params'
         self.record = f'./{self.name}_eval.txt'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.best_win_rate = 0
         with open(self.record, mode='w'):
             pass
 
@@ -87,7 +88,7 @@ class TrainPipeline:
         for _ in iterator:
             winner = self.game.start_play(player1=player1, player2=player2, show=0)
             if winner != 0:
-                if winner == 1:
+                if winner == (1 if 'X' in win_key else -1):
                     win_counter[win_key] += 1
                 else:
                     win_counter[lose_key] += 1
