@@ -174,6 +174,7 @@ class TrainPipeline_NewEval(TrainPipeline):
             print(f'current self-play batch: {i + 1}')
             win_rate = self.policy_evaluate()
             win_rate_buffer.append(win_rate)
+            plt.clf()
             plt.plot(win_rate_buffer)
             plt.grid(linestyle='--', alpha=0.3)
             plt.tight_layout()
