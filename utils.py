@@ -177,4 +177,4 @@ def inspectQ(net, board=None):
     probs1 = F.softmax(p1, dim=1).detach().cpu().numpy().flatten()
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
         print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
-    print(f'State-value X: {v0}, State-value O: {v1}')
+    print(f'State-value X: {v0.cpu().numpy().flatten()}, State-value O: {v1.cpu().numpy().flatten()}')
