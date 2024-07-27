@@ -177,7 +177,7 @@ class TrainPipeline_NewEval(TrainPipeline):
             plt.plot(win_rate_buffer)
             plt.grid(linestyle='--', alpha=0.3)
             plt.tight_layout()
-            plt.imsave(img)
+            plt.savefig(img)
             self.policy_value_net.save(current)
             if win_rate > self.best_win_rate:
                 print('New best policy!!')
