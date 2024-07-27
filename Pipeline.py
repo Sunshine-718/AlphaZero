@@ -11,7 +11,7 @@ from MCTS_AZ import AlphaZeroPlayer
 from Network import PolicyValueNet, PolicyValueNetQ
 from ReplayBuffer import ReplayBuffer, ReplayBufferQ
 from tqdm.auto import tqdm
-from utils import inspect, set_learning_rate, instant_augment, instant_augmentQ
+from utils import inspect, inspectQ, set_learning_rate, instant_augment, instant_augmentQ
 
 torch.set_float32_matmul_precision('high')
 
@@ -205,6 +205,34 @@ class TrainPipeline_Q_NewEval(TrainPipeline_NewEval):
                 self.episode_len = len(play_data)
                 for data in play_data:
                     self.buffer.store(*data)
+    
+    def policy_evaluate(self, n_games=12):
+        self.policy_value_net.eval()
+        inspectQ(self.policy_value_net.net)
+        current_az_player = AlphaZeroPlayer(self.policy_value_net.policy_value_fn,
+                                            self.c_puct,
+                                            self.n_playout)
+        current_az_player.eval()
+        mcts_player = MCTSPlayer(5, self.pure_mcts_n_playout)
+        win_counter = {'Xwin': 0, 'Xdraw': 0, 'Xlose': 0,
+                       'Owin': 0, 'Odraw': 0, 'Olose': 0}
+        win_counter = self.evaluation('Evaluating policy X...', current_az_player, mcts_player, win_counter, 'Xwin', 'Xlose', 'Xdraw', n_games)
+        win_counter = self.evaluation('Evaluating policy O...', mcts_player, current_az_player, win_counter, 'Owin', 'Olose', 'Odraw', n_games)
+        win_rate = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
+                     (win_counter['Xdraw'] + win_counter['Odraw'])) / n_games
+        X_win_rate = (
+            win_counter['Xwin'] + win_counter['Xdraw'] * 0.5) / (n_games // 2) * 100
+        O_win_rate = (
+            win_counter['Owin'] + win_counter['Odraw'] * 0.5) / (n_games // 2) * 100
+        eval_res = (f"num_playouts: {self.pure_mcts_n_playout}\n"
+                    f"\tX: win: {win_counter['Xwin']}, draw: {win_counter['Xdraw']}, lose: {win_counter['Xlose']}, win rate: {X_win_rate: .2f}%\n"
+                    f"\tO: win: {win_counter['Owin']}, draw: {win_counter['Odraw']}, lose: {win_counter['Olose']}, win rate: {O_win_rate: .2f}%\n"
+                    f"\ttotal:\n"
+                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_rate * 100: .2f}%\n")
+        print(eval_res, end='')
+        with open(self.record, mode='a+') as f:
+            f.write(eval_res)
+        return win_rate
     
     def policy_update(self):
         loss, entropy = [], []
