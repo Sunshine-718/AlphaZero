@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 from env import Env, Game
 from MCTS import MCTSPlayer
 from MCTS_AZ import AlphaZeroPlayer
-from Network import PolicyValueNet
-from ReplayBuffer import ReplayBuffer
+from Network import PolicyValueNet, PolicyValueNetQ
+from ReplayBuffer import ReplayBuffer, ReplayBufferQ
 from tqdm.auto import tqdm
-from utils import inspect, set_learning_rate, instant_augment
+from utils import inspect, set_learning_rate, instant_augment, instant_augmentQ
 
 torch.set_float32_matmul_precision('high')
 
@@ -183,3 +183,54 @@ class TrainPipeline_NewEval(TrainPipeline):
                 print('New best policy!!')
                 self.best_win_rate = win_rate
                 self.policy_value_net.save(best)
+
+
+class TrainPipeline_Q_NewEval(TrainPipeline_NewEval):
+    def init(self):
+        params = f'{self.params}/{self.name}_current.pt'
+        self.buffer = ReplayBufferQ(3, self.buffer_size, 7)
+        self.policy_value_net = PolicyValueNetQ(self.lr, params, self.device)
+        self.az_player = AlphaZeroPlayer(self.policy_value_net.policy_value_fn, c_puct=self.c_puct,
+                                         n_playout=self.n_playout, is_selfplay=1)
+        self.buffer.to(self.policy_value_net.device)
+        input('Confirm to continue.')
+    
+    def collect_selfplay_data(self, n_games=1):
+        self.az_player.train()
+        with torch.no_grad():
+            for _ in range(n_games):
+                _, play_data = self.game.start_self_play_Q(
+                    self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
+                play_data = list(play_data)[:]
+                self.episode_len = len(play_data)
+                for data in play_data:
+                    self.buffer.store(*data)
+    
+    def policy_update(self):
+        loss, entropy = [], []
+        batch = self.buffer.sample(self.batch_size)
+        batch = instant_augmentQ(batch)
+        old_probs, old_v = self.policy_value_net.policy_value(batch[0])
+        for _ in range(self.epochs):
+            set_learning_rate(self.policy_value_net.opt,
+                              self.lr * self.lr_multiplier)
+            res = self.policy_value_net.train_step(batch)
+            new_probs, new_v = self.policy_value_net.policy_value(batch[0])
+            loss.append(res[0])
+            entropy.append(res[1])
+            kl = np.mean(np.sum(
+                old_probs * (np.log(old_probs + 1e-10) - np.log(new_probs + 1e-10)), axis=1))
+            if kl > self.kl_targ * 4:   # early stopping if D_KL diverges badly
+                break
+        # adaptively adjust the learning rate
+        if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
+            self.lr_multiplier /= 1.5
+        elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
+            self.lr_multiplier *= 1.5
+        explained_var_old = self.explained_var(old_v, batch[-1])
+        explained_var_new = self.explained_var(new_v, batch[-1])
+        print(f'kl: {kl: .5f}\n'
+              f'lr_multiplier: {self.lr_multiplier: .3f}\n'
+              f'explained_var_old: {explained_var_old: .3f}\n'
+              f'explained_var_new: {explained_var_new: .3f}')
+        return np.mean(loss), np.mean(entropy)

@@ -156,6 +156,14 @@ class PolicyValueNet:
 
 
 class PolicyValueNetQ(PolicyValueNet):
+    def __init__(self, lr, params=None, device='cpu'):
+        self.device = device
+        self.params = params
+        self.net = NetworkQ(lr, 3, 32, 7, device)
+        self.opt = self.net.opt
+        if params:
+            self.net.load(params)
+
     def policy_value(self, state):
         self.net.eval()
         with torch.no_grad():
