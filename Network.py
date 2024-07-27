@@ -70,8 +70,9 @@ class Network(nn.Module):
         return self.policy_head(hidden), self.value_head(hidden)
 
 
-class NetworkQ(Network):
+class NetworkQ(nn.Module):
     def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu'):
+        super().__init__()
         self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim, h_dim * 2,
@@ -96,6 +97,38 @@ class NetworkQ(Network):
         self.opt = Adam(self.parameters(), lr=lr, weight_decay=1e-4)
         self.weight_init()
         self.to(self.device)
+    
+    def weight_init(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+
+    def save(self, path=None):
+        if path is not None:
+            self.cpu()
+            torch.save(self.state_dict(), path)
+            self.to(self.device)
+
+    def load(self, path=None):
+        if path is not None:
+            try:
+                self.cpu()
+                self.load_state_dict(torch.load(path))
+                self.to(self.device)
+            except Exception as e:
+                print(f'failed to load parameters\n{e}')
+                self.to(self.device)
+
+    def forward(self, x):
+        hidden = self.hidden(x)
+        return self.policy_head(hidden), self.value_head(hidden)
 
 
 class PolicyValueNet:
