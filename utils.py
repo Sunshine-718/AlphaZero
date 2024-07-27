@@ -26,10 +26,10 @@ def instant_augmentQ(batch):
         for idx_j, j in enumerate(i):
             state[idx, idx_j] = torch.fliplr(j)
         prob[[idx]] = torch.fliplr(prob[[idx]])
-    action = 6.0 - action
     state = torch.concat([state, batch[0]])
-    prob = torch.concat([prob, batch[1]])
-    value = torch.concat([value, batch[2]])
+    action = torch.concat([action, torch.add(-action, 6.0)])
+    prob = torch.concat([prob, batch[2]])
+    value = torch.concat([value, batch[3]])
     return state, action, prob, value
 
 

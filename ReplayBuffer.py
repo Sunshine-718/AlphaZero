@@ -72,7 +72,7 @@ class ReplayBufferQ(ReplayBuffer):
 
     def to(self, device='cpu'):
         super().to(device)
-        self.action.to(device)
+        self.action = self.action.to(device)
 
     def store(self, state, action, prob, value):
         idx = super().store(state, prob, value)
