@@ -20,6 +20,18 @@ def instant_augment(batch):
     value = torch.concat([value, batch[2]])
     return state, prob, value
 
+def instant_augmentQ(batch):
+    state, action, prob, value = deepcopy(batch)
+    for idx, i in enumerate(state):
+        for idx_j, j in enumerate(i):
+            state[idx, idx_j] = torch.fliplr(j)
+        prob[[idx]] = torch.fliplr(prob[[idx]])
+    action = 6.0 - action
+    state = torch.concat([state, batch[0]])
+    prob = torch.concat([prob, batch[1]])
+    value = torch.concat([value, batch[2]])
+    return state, action, prob, value
+
 
 def symmetric_state(state):
     state = deepcopy(state)

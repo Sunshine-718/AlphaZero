@@ -4,8 +4,8 @@
 # Created on: 14/Jul/2024  21:00
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 from env import Env, Game
-from copy import deepcopy
 from MCTS import MCTSPlayer
 from MCTS_AZ import AlphaZeroPlayer
 from Network import PolicyValueNet
@@ -22,7 +22,7 @@ class TrainPipeline:
         self.game = Game(self.env)
         self.name = name
         self.params = './params'
-        self.record = f'./{self.name}_eval.txt'
+        self.record = f'./result/{self.name}_eval.txt'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.best_win_rate = 0
         with open(self.record, mode='w'):
@@ -154,3 +154,32 @@ class TrainPipeline:
                         self.best_win_rate = 0
                 if win_rate != 1.0:
                     break
+
+
+class TrainPipeline_NewEval(TrainPipeline):
+    def run(self):
+        win_rate_buffer = []
+        img = f'./result/{self.name}_win_rate.jpg'
+        current = f'{self.params}/{self.name}_current.pt'
+        best = f'{self.params}/{self.name}_best.pt'
+        for i in range(self.game_batch_num):
+            self.collect_selfplay_data(self.play_batch_size)
+            loss, entropy = float('inf'), float('inf')
+            if len(self.buffer) > self.batch_size * 10:
+                loss, entropy = self.policy_update()
+            print(f'batch i: {i + 1}, episode_len: {self.episode_len}, '
+                  f'loss: {loss: .8f}, entropy: {entropy: .8f}')
+            if (i) % self.check_freq != 0:
+                continue
+            print(f'current self-play batch: {i + 1}')
+            win_rate = self.policy_evaluate()
+            win_rate_buffer.append(win_rate)
+            plt.plot(win_rate_buffer)
+            plt.grid(linestyle='--', alpha=0.3)
+            plt.tight_layout()
+            plt.imsave(img)
+            self.policy_value_net.save(current)
+            if win_rate > self.best_win_rate:
+                print('New best policy!!')
+                self.best_win_rate = win_rate
+                self.policy_value_net.save(best)
