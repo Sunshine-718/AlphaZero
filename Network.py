@@ -174,10 +174,12 @@ class PolicyValueNetQ(PolicyValueNet):
     def policy_value(self, state):
         self.net.eval()
         with torch.no_grad():
+            state_np = state.cpu().numpy()
             log_p, value = self.net(state)
             probs = np.exp(log_p.cpu().numpy())
             value = value.cpu().numpy()
-            value = np.mean(probs * value, axis=1, keepdims=True)
+            mask = np.logical_not(np.all(state_np[:, 0] + state_np[:, 1] == 1, axis=1))
+            value = np.max(value * mask, axis=1, keepdims=True)
         return probs, value
 
     def policy_value_fn(self, env):
