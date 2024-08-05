@@ -122,11 +122,9 @@ def board_to_state(board, turn):
     temp[:, 0] = board == 1
     temp[:, 1] = board == -1
     if turn == 1:
-        temp[:, 2] = np.zeros(
-            (board.shape[0], board.shape[1]), dtype=np.float32)
+        temp[:, 2] = np.ones((board.shape[0], board.shape[1]), dtype=np.float32)
     else:
-        temp[:, 2] = np.ones(
-            (board.shape[0], board.shape[1]), dtype=np.float32)
+        temp[:, 2] = -np.ones((board.shape[0], board.shape[1]), dtype=np.float32)
     return temp
 
 
