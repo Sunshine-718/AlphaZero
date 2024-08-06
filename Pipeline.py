@@ -121,7 +121,7 @@ class TrainPipeline:
             if len(self.buffer) > self.batch_size * 10:
                 loss, entropy = self.policy_update()
             else:
-                perc = round(len(self.buffer) / (self.batch_size * 10) * 100, 0)
+                perc = int(round(len(self.buffer) / (self.batch_size * 10) * 100, 0))
                 print(f'Filling buffer: {perc}%')
                 continue
             print(f'batch i: {i + 1}, episode_len: {self.episode_len}, '
