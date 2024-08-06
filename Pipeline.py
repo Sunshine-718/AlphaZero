@@ -22,7 +22,6 @@ class TrainPipeline:
         self.game = Game(self.env)
         self.name = name
         self.params = './params'
-        self.record = f'./result/{self.name}_eval.txt'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         with open(self.record, mode='w'):
             pass
