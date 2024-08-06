@@ -140,7 +140,7 @@ class TrainPipeline:
             plt.plot(self.R_B, label=f'Elo score (MCTS: {self.pure_mcts_n_playout})')
             plt.grid(linestyle='--', alpha=0.3)
             plt.legend()
-            plt.title(f'AlphaZero: {r_a}\nMCTS: {r_b}')
+            plt.title(f'AlphaZero: {int(r_a)}\nMCTS: {int(r_b)}')
             plt.tight_layout()
             plt.savefig(img)
             self.policy_value_net.save(current)
