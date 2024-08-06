@@ -19,7 +19,7 @@ class Base(nn.Module):
                 nn.init.kaiming_normal_(m.weight)
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
-                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.normal_(m.weight, 0, 0.1)
                 nn.init.constant_(m.bias, 0)
 
     def save(self, path=None):
@@ -43,19 +43,18 @@ class Network(Base):
     def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
-                                    nn.BatchNorm2d(h_dim),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim, h_dim * 2,
                                               kernel_size=(3, 4)),
-                                    nn.BatchNorm2d(h_dim * 2),
+                                    nn.Dropout2d(0.1),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim * 2, h_dim * 4,
                                               kernel_size=(3, 3)),
-                                    nn.BatchNorm2d(h_dim * 4),
+                                    nn.Dropout2d(0.1),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim * 4, h_dim * 8,
                                               kernel_size=(4, 4)),
-                                    nn.BatchNorm2d(h_dim * 8),
+                                    nn.Dropout2d(0.1),
                                     nn.Tanh(),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 8),

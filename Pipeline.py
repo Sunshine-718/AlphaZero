@@ -10,8 +10,8 @@ from MCTS import MCTSPlayer
 from MCTS_AZ import AlphaZeroPlayer
 from Network import PolicyValueNet, PolicyValueNetQ
 from ReplayBuffer import ReplayBuffer, ReplayBufferQ
-from tqdm.auto import tqdm
 from utils import inspect, inspectQ, set_learning_rate, instant_augment, instant_augmentQ
+from elo import Elo
 
 torch.set_float32_matmul_precision('high')
 
@@ -24,7 +24,6 @@ class TrainPipeline:
         self.params = './params'
         self.record = f'./result/{self.name}_eval.txt'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.best_win_rate = 0
         with open(self.record, mode='w'):
             pass
 
@@ -35,6 +34,10 @@ class TrainPipeline:
         self.az_player = AlphaZeroPlayer(self.policy_value_net.policy_value_fn, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.buffer.to(self.policy_value_net.device)
+        self.elo = Elo(self.init_elo, 1500)
+        self.R_A = [self.init_elo,]
+        self.R_B = [1500,]
+        self.best_elo = self.init_elo
         input('Confirm to continue.')
 
     def collect_selfplay_data(self, n_games=1):
@@ -83,9 +86,8 @@ class TrainPipeline:
         return np.mean(loss), np.mean(entropy)
     
     def evaluation(self, description, player1, player2, win_counter, win_key, lose_key, draw_key, n_games):
-        iterator = tqdm(range(n_games // 2))
-        iterator.set_description(description)
-        for _ in iterator:
+        print(description)
+        for _ in range(n_games // 2):
             winner = self.game.start_play(player1=player1, player2=player2, show=0)
             if winner != 0:
                 if winner == (1 if 'X' in win_key else -1):
@@ -97,7 +99,7 @@ class TrainPipeline:
         return win_counter
 
 
-    def policy_evaluate(self, n_games=12):
+    def policy_evaluate(self, n_games=2):
         self.policy_value_net.eval()
         inspect(self.policy_value_net.net)
         current_az_player = AlphaZeroPlayer(self.policy_value_net.policy_value_fn,
@@ -109,25 +111,13 @@ class TrainPipeline:
                        'Owin': 0, 'Odraw': 0, 'Olose': 0}
         win_counter = self.evaluation('Evaluating policy X...', current_az_player, mcts_player, win_counter, 'Xwin', 'Xlose', 'Xdraw', n_games)
         win_counter = self.evaluation('Evaluating policy O...', mcts_player, current_az_player, win_counter, 'Owin', 'Olose', 'Odraw', n_games)
-        win_rate = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
-                     (win_counter['Xdraw'] + win_counter['Odraw'])) / n_games
-        X_win_rate = (
-            win_counter['Xwin'] + win_counter['Xdraw'] * 0.5) / (n_games // 2) * 100
-        O_win_rate = (
-            win_counter['Owin'] + win_counter['Odraw'] * 0.5) / (n_games // 2) * 100
-        eval_res = (f"num_playouts: {self.pure_mcts_n_playout}\n"
-                    f"\tX: win: {win_counter['Xwin']}, draw: {win_counter['Xdraw']}, lose: {win_counter['Xlose']}, win rate: {X_win_rate: .2f}%\n"
-                    f"\tO: win: {win_counter['Owin']}, draw: {win_counter['Odraw']}, lose: {win_counter['Olose']}, win rate: {O_win_rate: .2f}%\n"
-                    f"\ttotal:\n"
-                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_rate * 100: .2f}%\n")
-        print(eval_res, end='')
-        with open(self.record, mode='a+') as f:
-            f.write(eval_res)
-        return win_rate
+        self.elo.update(1 if 'Xwin' else 0.5 if 'Xdraw' else 0)
+        return self.elo.update(1 if 'Owin' else 0.5 if 'Odraw' else 0)
 
     def run(self):
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
+        img = f'./result/{self.name}_elo.jpg'
         for i in range(self.game_batch_num):
             self.collect_selfplay_data(self.play_batch_size)
             loss, entropy = float('inf'), float('inf')
@@ -139,54 +129,25 @@ class TrainPipeline:
                 continue
             print(f'current self-play batch: {i + 1}')
             while True:
-                win_rate = self.policy_evaluate()
+                r_a, r_b = self.policy_evaluate()
+                self.R_A.append(r_a)
+                self.R_B.append(r_b)
+                plt.clf()
+                plt.plot(self.R_A, label='Elo score (AlphaZero)')
+                plt.plot(self.R_B, label=f'Elo score (MCTS: {self.pure_mcts_n_playout})')
+                plt.grid(linestyle='--', alpha=0.3)
+                plt.legend()
+                plt.title(f'AlphaZero: {r_a}\nMCTS: {r_b}')
+                plt.tight_layout()
+                plt.savefig(img)
                 self.policy_value_net.save(current)
-                if win_rate > self.best_win_rate:
+                if r_a > self.best_elo:
                     print('New best policy!!')
-                    self.best_win_rate = win_rate
+                    self.best_elo = r_a
                     self.policy_value_net.save(best)
-                    if (self.best_win_rate == 1.0 and self.pure_mcts_n_playout < 5000):
-                        self.pure_mcts_n_playout += 10
-                        self.best_win_rate = 0
-                        continue
-                    elif (win_rate == 0 and self.pure_mcts_n_playout > 10):
-                        self.pure_mcts_n_playout -= 10
-                        self.best_win_rate = 0
-                if win_rate != 1.0:
-                    break
 
 
-class TrainPipeline_NewEval(TrainPipeline):
-    def run(self):
-        win_rate_buffer = []
-        img = f'./result/{self.name}_win_rate.jpg'
-        current = f'{self.params}/{self.name}_current.pt'
-        best = f'{self.params}/{self.name}_best.pt'
-        for i in range(self.game_batch_num):
-            self.collect_selfplay_data(self.play_batch_size)
-            loss, entropy = float('inf'), float('inf')
-            if len(self.buffer) > self.batch_size * 10:
-                loss, entropy = self.policy_update()
-            print(f'batch i: {i + 1}, episode_len: {self.episode_len}, '
-                  f'loss: {loss: .8f}, entropy: {entropy: .8f}')
-            if (i) % self.check_freq != 0:
-                continue
-            print(f'current self-play batch: {i + 1}')
-            win_rate = self.policy_evaluate()
-            win_rate_buffer.append(win_rate)
-            plt.clf()
-            plt.plot(win_rate_buffer)
-            plt.grid(linestyle='--', alpha=0.3)
-            plt.tight_layout()
-            plt.savefig(img)
-            self.policy_value_net.save(current)
-            if win_rate > self.best_win_rate:
-                print('New best policy!!')
-                self.best_win_rate = win_rate
-                self.policy_value_net.save(best)
-
-
-class TrainPipeline_Q_NewEval(TrainPipeline_NewEval):
+class TrainPipeline_Q_NewEval(TrainPipeline):
     def init(self):
         params = f'{self.params}/{self.name}_current.pt'
         self.buffer = ReplayBufferQ(3, self.buffer_size, 7)
@@ -219,21 +180,8 @@ class TrainPipeline_Q_NewEval(TrainPipeline_NewEval):
                        'Owin': 0, 'Odraw': 0, 'Olose': 0}
         win_counter = self.evaluation('Evaluating policy X...', current_az_player, mcts_player, win_counter, 'Xwin', 'Xlose', 'Xdraw', n_games)
         win_counter = self.evaluation('Evaluating policy O...', mcts_player, current_az_player, win_counter, 'Owin', 'Olose', 'Odraw', n_games)
-        win_rate = (win_counter['Xwin'] + win_counter['Owin'] + 0.5 *
-                     (win_counter['Xdraw'] + win_counter['Odraw'])) / n_games
-        X_win_rate = (
-            win_counter['Xwin'] + win_counter['Xdraw'] * 0.5) / (n_games // 2) * 100
-        O_win_rate = (
-            win_counter['Owin'] + win_counter['Odraw'] * 0.5) / (n_games // 2) * 100
-        eval_res = (f"num_playouts: {self.pure_mcts_n_playout}\n"
-                    f"\tX: win: {win_counter['Xwin']}, draw: {win_counter['Xdraw']}, lose: {win_counter['Xlose']}, win rate: {X_win_rate: .2f}%\n"
-                    f"\tO: win: {win_counter['Owin']}, draw: {win_counter['Odraw']}, lose: {win_counter['Olose']}, win rate: {O_win_rate: .2f}%\n"
-                    f"\ttotal:\n"
-                    f"\twin: {win_counter['Xwin'] + win_counter['Owin']}, draw: {win_counter['Xdraw'] + win_counter['Odraw']}, lose: {win_counter['Xlose'] + win_counter['Olose']}, win rate: {win_rate * 100: .2f}%\n")
-        print(eval_res, end='')
-        with open(self.record, mode='a+') as f:
-            f.write(eval_res)
-        return win_rate
+        self.elo.update(1 if 'Xwin' else 0.5 if 'Xdraw' else 0)
+        return self.elo.update(1 if 'Owin' else 0.5 if 'Odraw' else 0)
     
     def policy_update(self):
         loss, entropy = [], []
