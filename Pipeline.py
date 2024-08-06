@@ -115,6 +115,7 @@ class TrainPipeline:
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
         img = f'./result/{self.name}_elo.jpg'
+        temp = 0
         for i in range(self.game_batch_num):
             self.collect_selfplay_data(self.play_batch_size)
             loss, entropy = float('inf'), float('inf')
@@ -123,7 +124,9 @@ class TrainPipeline:
             else:
                 perc = int(round(len(self.buffer) / (self.batch_size * 10) * 100, 0))
                 print(f'Filling buffer: {perc}%')
+                temp = i
                 continue
+            i = i - temp
             print(f'batch i: {i + 1}, episode_len: {self.episode_len}, '
                   f'loss: {loss: .8f}, entropy: {entropy: .8f}')
             if (i) % self.check_freq != 0:
