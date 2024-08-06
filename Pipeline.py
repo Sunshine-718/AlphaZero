@@ -129,23 +129,22 @@ class TrainPipeline:
             if (i) % self.check_freq != 0:
                 continue
             print(f'current self-play batch: {i + 1}')
-            while True:
-                r_a, r_b = self.policy_evaluate()
-                self.R_A.append(r_a)
-                self.R_B.append(r_b)
-                plt.clf()
-                plt.plot(self.R_A, label='Elo score (AlphaZero)')
-                plt.plot(self.R_B, label=f'Elo score (MCTS: {self.pure_mcts_n_playout})')
-                plt.grid(linestyle='--', alpha=0.3)
-                plt.legend()
-                plt.title(f'AlphaZero: {r_a}\nMCTS: {r_b}')
-                plt.tight_layout()
-                plt.savefig(img)
-                self.policy_value_net.save(current)
-                if r_a > self.best_elo:
-                    print('New best policy!!')
-                    self.best_elo = r_a
-                    self.policy_value_net.save(best)
+            r_a, r_b = self.policy_evaluate()
+            self.R_A.append(r_a)
+            self.R_B.append(r_b)
+            plt.clf()
+            plt.plot(self.R_A, label='Elo score (AlphaZero)')
+            plt.plot(self.R_B, label=f'Elo score (MCTS: {self.pure_mcts_n_playout})')
+            plt.grid(linestyle='--', alpha=0.3)
+            plt.legend()
+            plt.title(f'AlphaZero: {r_a}\nMCTS: {r_b}')
+            plt.tight_layout()
+            plt.savefig(img)
+            self.policy_value_net.save(current)
+            if r_a > self.best_elo:
+                print('New best policy!!')
+                self.best_elo = r_a
+                self.policy_value_net.save(best)
 
 
 class TrainPipeline_Q_NewEval(TrainPipeline):
