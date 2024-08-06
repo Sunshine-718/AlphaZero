@@ -123,6 +123,10 @@ class TrainPipeline:
             loss, entropy = float('inf'), float('inf')
             if len(self.buffer) > self.batch_size * 10:
                 loss, entropy = self.policy_update()
+            else:
+                perc = round(len(self.buffer) / (self.batch_size * 10) * 100, 0)
+                print(f'Filling buffer: {perc}%')
+                continue
             print(f'batch i: {i + 1}, episode_len: {self.episode_len}, '
                   f'loss: {loss: .8f}, entropy: {entropy: .8f}')
             if (i) % self.check_freq != 0:
