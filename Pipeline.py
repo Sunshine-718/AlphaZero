@@ -23,8 +23,6 @@ class TrainPipeline:
         self.name = name
         self.params = './params'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        with open(self.record, mode='w'):
-            pass
 
     def init(self):
         params = f'{self.params}/{self.name}_current.pt'
