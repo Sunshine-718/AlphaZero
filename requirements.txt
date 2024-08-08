@@ -2,3 +2,5 @@ numba==0.60.0
 numpy==1.26.4
 tqdm==4.66.4
 matplotlib
+torch-tb-profiler
+tensorboard

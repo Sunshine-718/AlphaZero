@@ -20,18 +20,6 @@ def instant_augment(batch):
     value = torch.concat([value, batch[2]])
     return state, prob, value
 
-def instant_augmentQ(batch):
-    state, action, prob, value = deepcopy(batch)
-    for idx, i in enumerate(state):
-        for idx_j, j in enumerate(i):
-            state[idx, idx_j] = torch.fliplr(j)
-        prob[[idx]] = torch.fliplr(prob[[idx]])
-    state = torch.concat([state, batch[0]])
-    action = torch.concat([action, torch.add(-action, 6.0)])
-    prob = torch.concat([prob, batch[2]])
-    value = torch.concat([value, batch[3]])
-    return state, action, prob, value
-
 
 def symmetric_state(state):
     state = deepcopy(state)
@@ -147,34 +135,14 @@ def inspect(net, board=None):
         state0 = torch.from_numpy(board_to_state(
             board, 1)).float().to(net.device)
         p0, v0 = net(state0)
-        probs0 = F.softmax(p0, dim=1).detach().cpu().numpy().flatten()
+        probs0 = torch.exp(p0).detach().cpu().numpy().flatten()
         value0 = v0.item()
         state1 = torch.from_numpy(board_to_state(
             board, -1)).float().to(net.device)
         p1, v1 = net(state1)
-        probs1 = F.softmax(p1, dim=1).detach().cpu().numpy().flatten()
+        probs1 = torch.exp(p1).detach().cpu().numpy().flatten()
         value1 = v1.item()
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
         print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
     print(f'State-value X: {value0: .4f}, State-value O: {value1: .4f}')
-
-def inspectQ(net, board=None):
-    if board is None:
-        board = np.array([[0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 0]])
-    with torch.no_grad():
-        state0 = torch.from_numpy(board_to_state(
-            board, 1)).float().to(net.device)
-        p0, v0 = net(state0)
-        probs0 = F.softmax(p0, dim=1).detach().cpu().numpy().flatten()
-        state1 = torch.from_numpy(board_to_state(
-            board, -1)).float().to(net.device)
-        p1, v1 = net(state1)
-        probs1 = F.softmax(p1, dim=1).detach().cpu().numpy().flatten()
-    for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
-        print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
-    print(f'State-value X: {v0.cpu().numpy().flatten()}\nState-value O: {v1.cpu().numpy().flatten()}')
+    return probs0, v0, probs1, v1

@@ -58,32 +58,3 @@ class ReplayBuffer:
         dataset = TensorDataset(self.state[:self.__len__(
         )], self.prob[:self.__len__()], self.value[:self.__len__()])
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-
-class ReplayBufferQ(ReplayBuffer):
-    def __init__(self, state_dim, capacity, action_dim):
-        super().__init__(state_dim, capacity, action_dim)
-        self.action = torch.full((capacity, 1), torch.nan, dtype=torch.float32)
-
-    def reset(self):
-        super().reset()
-        self.action = torch.full_like(
-            self.action, torch.nan, dtype=torch.float32)
-
-    def to(self, device='cpu'):
-        super().to(device)
-        self.action = self.action.to(device)
-
-    def store(self, state, action, prob, value):
-        idx = super().store(state, prob, value)
-        self.action[idx] = action
-
-    def sample(self, batch_size):
-        idx = torch.from_numpy(np.random.randint(
-            0, self.__len__(), batch_size, dtype=np.int64))
-        return self.state[idx], self.action[idx], self.prob[idx, :], self.value[idx, :]
-    
-    def dataloader(self, batch_size):
-        dataset = TensorDataset(self.state[:self.__len__(
-        )], self.action[:self.__len__()], self.prob[:self.__len__()], self.value[:self.__len__()])
-        return DataLoader(dataset, batch_size=batch_size, shuffle=True)

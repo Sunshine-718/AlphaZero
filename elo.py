@@ -16,8 +16,8 @@ class Elo:
         """
         expected_a = 1 / (1 + pow(10, (self.R_B - self.R_A) / 400))
         expected_b = 1 / (1 + pow(10, (self.R_A - self.R_B) / 400))
-        self.R_A += k * (result_a - expected_a)
-        self.R_B += k * ((1 - result_a) - expected_b)
+        self.R_A = max(self.R_A +  k * (result_a - expected_a), 1500)
+        self.R_B = max(self.R_B +  k * ((1 - result_a) - expected_b), 1500)
         return self.R_A, self.R_B
         
 if __name__ == '__main__':
