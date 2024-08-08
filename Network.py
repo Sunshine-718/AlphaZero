@@ -87,6 +87,8 @@ class PolicyValueNet:
     def eval(self):
         self.net.eval()
 
+    def __call__(self, env):
+        return self.policy_value_fn(env)
 
     def policy_value(self, state):
         self.net.eval()

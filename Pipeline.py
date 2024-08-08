@@ -28,7 +28,7 @@ class TrainPipeline:
         params = f'{self.params}/{self.name}_current.pt'
         self.buffer = ReplayBuffer(3, self.buffer_size, 7)
         self.policy_value_net = PolicyValueNet(self.lr, params, self.device)
-        self.az_player = AlphaZeroPlayer(self.policy_value_net.policy_value_fn, c_puct=self.c_puct,
+        self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.buffer.to(self.policy_value_net.device)
         self.elo = Elo(self.init_elo, 1500)
@@ -96,7 +96,7 @@ class TrainPipeline:
 
     def policy_evaluate(self, n_games=2):
         self.policy_value_net.eval()
-        current_az_player = AlphaZeroPlayer(self.policy_value_net.policy_value_fn,
+        current_az_player = AlphaZeroPlayer(self.policy_value_net,
                                             self.c_puct,
                                             self.n_playout)
         current_az_player.eval()
