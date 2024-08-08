@@ -114,14 +114,13 @@ class TrainPipeline:
     def run(self):
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
-        img = f'./result/{self.name}_elo.jpg'
         temp = 0
         writer = SummaryWriter(filename_suffix=self.name)
         fake_input = torch.randn(1, 3, 6, 7).to(
             self.policy_value_net.net.device)
         writer.add_graph(self.policy_value_net.net, fake_input)
-        writer.add_scalars('Elo score', {f'AlphaZero: {self.n_playout}': self.init_elo,
-                                         f'MCTS: {self.pure_mcts_n_playout}': 1500})
+        writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
+                                    f'MCTS: {self.pure_mcts_n_playout}': 1500})
         for i in range(self.game_batch_num):
             self.collect_selfplay_data(self.play_batch_size)
             loss, entropy = float('inf'), float('inf')
@@ -141,18 +140,18 @@ class TrainPipeline:
             print(f'current self-play batch: {i + 1}')
             r_a, r_b = self.policy_evaluate()
             p0, v0, p1, v1 = inspect(self.policy_value_net.net)
-            writer.add_scalars('Elo score', {f'AlphaZero: {self.n_playout}': r_a,
-                                             f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
-            writer.add_scalar('Loss', loss, i)
-            writer.add_scalar('Entropy', entropy, i)
-            writer.add_scalar('Episode length', self.episode_len, i)
-            writer.add_scalars('Initial Value', {'X': v0, 'O': v1}, i)
-            writer.add_histogram('Action probability of X', p0, i)
-            writer.add_histogram('Action probability of O', p1, i)
+            writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': r_a,
+                                        f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
+            writer.add_scalar('Metric/Loss', loss, i)
+            writer.add_scalar('Metric/Entropy', entropy, i)
+            writer.add_scalar('Metric/Episode length', self.episode_len, i)
+            writer.add_scalars('Metric/Initial Value', {'X': v0, 'O': v1}, i)
+            writer.add_scalars('Action probability/X', {str(idx): i for idx, i in enumerate(p0)}, i)
+            writer.add_scalars('Action probability/O', {str(idx): i for idx, i in enumerate(p1)}, i)
             self.policy_value_net.save(current)
             if r_a > self.best_elo:
                 print('New best policy!!')
                 self.best_elo = r_a
-                writer.add_scalar('Highest elo', self.best_elo, i)
+                writer.add_scalar('Metric/Highest elo', self.best_elo, i)
                 self.policy_value_net.save(best)
         writer.close()
