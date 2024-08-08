@@ -15,7 +15,10 @@ class MCTS_AZ(MCTS):
         node = self.select_leaf_node(env)
         action_probs, leaf_value = self.policy(env)
         if not env.done():
-            noise = np.random.dirichlet([dirichlet_alpha for _ in action_probs])
+            if dirichlet_alpha is not None:
+                noise = np.random.dirichlet([dirichlet_alpha for _ in action_probs])
+            else:
+                noise = None
             node.expand(action_probs, noise)
         else:
             winner = env.winPlayer()

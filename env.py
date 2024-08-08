@@ -124,7 +124,7 @@ class Game:
         steps = 0
         while True:
             if steps < first_n_steps:
-                action, probs = player.get_action(self.env, temp, dirichlet_alpha)
+                action, probs = player.get_action(self.env, temp, None)
             else:
                 action, probs = player.get_action(self.env, 1e-3, dirichlet_alpha)
             steps += 1

@@ -66,10 +66,12 @@ class TreeNode:
                 self.deterministic = True
     
     def expand(self, action_probs, noise=None):
-        noise = [self.prior for _ in action_probs] if (noise is None or self.deterministic) else noise
         for idx, (action, prior) in enumerate(action_probs):
             if action not in self.children:
-                self.children[action] = TreeNode(self, prior, noise[idx])
+                if noise is None or self.deterministic:
+                    self.children[action] = TreeNode(self, prior, prior)
+                else:
+                    self.children[action] = TreeNode(self, prior, noise[idx])
     
     def select(self, c_puct):
         return max(self.children.items(), key=lambda action_node: action_node[1].ucb1(c_puct))
