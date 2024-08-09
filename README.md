@@ -1,7 +1,7 @@
 # AlphaZero for Connect Four  
 ## Environment
-`python 3.12` 
-`torch 2.3.0`  
+[`python 3.12`](https://www.python.org)  
+[`torch 2.3.0`](https://pytorch.org)  
 
 ## How to install dependencies?
 Run the command lines below in terminal.
@@ -26,7 +26,7 @@ and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column.
 Optional argument:  
 `-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 100.
 ## How to train your own AlphaZero?
-Just open `train.ipynb` and run it __after backing up the latest parameter files__.  
+Just open [`train.ipynb`](./train.ipynb) and run it __after backing up the latest parameter files__.  
 __*IMPORTANT!!!*__:  
 Remember to __back up__ the __latest__ parameter files, if the parameter files are corrupted or overwritten, it will take __several hours to 1 day__, even longer, to retrain the model from scratch, the training procedure is extremely slow!  
 ### How to monitor the training procedure?
@@ -34,7 +34,7 @@ The training procedure is monitored using tensorboard, you can open tensorboard 
 ```shell
 tensorboard --logdir=runs
 ```
-After running this command, open the browser and type ```http://localhost:6006/``` in the URL bar.  
+After running this command, open the browser and type [```http://localhost:6006/```](http://localhost:6006/) in the URL bar.  
 ## References
 [Silver, D., Schrittwieser, J., Simonyan, K. et al. Mastering the game of Go without human knowledge. Nature 550, 354–359 (2017).](https://doi.org/10.1038/nature24270)  
 
