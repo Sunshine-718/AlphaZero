@@ -1,6 +1,5 @@
 numba
 numpy
 tqdm
-matplotlib
 torch-tb-profiler
 tensorboard

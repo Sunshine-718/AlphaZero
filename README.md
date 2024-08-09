@@ -1,7 +1,7 @@
 # AlphaZero for Connect Four  
 ## Environment
-```python 3.12``` 
-```torch 2.3.0```  
+`python 3.12` 
+`torch 2.3.0`  
 
 ## How to install dependencies?
 Run the command lines below in terminal.
