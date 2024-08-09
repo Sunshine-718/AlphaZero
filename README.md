@@ -6,9 +6,7 @@ torch 2.3.0
 ## How to install dependencies?
 Run the command lines below in terminal.
 ``` shell
-pip install numpy
-pip install numba
-pip install tqdm
+pip install -r requirements.txt
 ```
 Pytorch official site: [click here](https://pytorch.org)  
 If you prefer to run this code beyond cuda device, just simply run the code below to install the cpu version of Pytorch.
@@ -30,7 +28,13 @@ Optional argument:
 ## How to train your own AlphaZero?
 Just open `train.ipynb` and run it __after backing up the latest parameter files__.  
 __*IMPORTANT!!!*__:  
-Remember to __back up__ the __latest__ parameter files, if the parameter files are corrupted or overwritten, it will take __several hours to 1 day__, even longer, to retrain the model from scratch, the training procedure is extremely slow!
+Remember to __back up__ the __latest__ parameter files, if the parameter files are corrupted or overwritten, it will take __several hours to 1 day__, even longer, to retrain the model from scratch, the training procedure is extremely slow!  
+### How to monitor the training procedure?
+The training procedure is monitored using tensorboard, you can open tensorboard by typing the command below:
+```shell
+tensorboard --logdir=runs
+```
+After running this command, open the browser and type ```http://localhost:6006/``` in the URL bar.  
 ## References
 [Silver, D., Schrittwieser, J., Simonyan, K. et al. Mastering the game of Go without human knowledge. Nature 550, 354–359 (2017).](https://doi.org/10.1038/nature24270)  
 
@@ -41,3 +45,4 @@ Remember to __back up__ the __latest__ parameter files, if the parameter files a
 
 ## Future works
 1. Implement MCTS in parallel. 
+2. Add other board games
