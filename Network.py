@@ -5,8 +5,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim import Adam
 import numpy as np
+from config import network_config
+from torch.optim import Adam
 
 
 class Base(nn.Module):
@@ -75,7 +76,7 @@ class PolicyValueNet:
     def __init__(self, lr, params=None, device='cpu'):
         self.device = device
         self.params = params
-        self.net = Network(lr, 3, 32, 7, device)
+        self.net = Network(lr, network_config['in_dim'], network_config['h_dim'], network_config['out_dim'], device)
         self.opt = self.net.opt
         if params:
             self.net.load(params)
@@ -133,4 +134,3 @@ class PolicyValueNet:
         if params is None:
             params = self.params
         self.net.load(params)
-        

@@ -3,17 +3,20 @@
 # Written by: Sunshine
 # Created on: 20/Jul/2024  22:31
 import torch
+import argparse
+from config import config
 from env import Env, Game
+from Network import PolicyValueNet
 from MCTS import MCTSPlayer as MCTS_Pure
 from MCTS_AZ import AlphaZeroPlayer as MCTSPlayer
-from Network import PolicyValueNet
-import argparse
 
-parser = argparse.ArgumentParser(description='Play connect four with AlphaZero!')
+
+parser = argparse.ArgumentParser(description='Play connect four against AlphaZero!')
 parser.add_argument('-x', action='store_true', help='Play as X')
 parser.add_argument('-o', action='store_true', help='Play as O')
 parser.add_argument('-n', type=int, default=1000, help='Number of simulations before AlphaZero make an action')
 parser.add_argument('--self_play', action='store_true', help='AlphaZero play against itself')
+parser.add_argument('--model', type=str, default='./params/AlphaZero_best.pt', help='Model file path')
 
 args = parser.parse_args()
 
@@ -40,12 +43,11 @@ class Human:
 
 
 def run():
-    params = './params/AlphaZero_current.pt'
     try:
         env = Env()
         game = Game(env)
-        policy_value_net = PolicyValueNet(0, params, device)
-        az_player = MCTSPlayer(policy_value_net.policy_value_fn, c_puct=4,
+        policy_value_net = PolicyValueNet(0, args.model, device)
+        az_player = MCTSPlayer(policy_value_net.policy_value_fn, c_puct=config['c_puct'],
                                n_playout=args.n, is_selfplay=0)
         az_player.eval()
         # mcts_player = MCTS_Pure(c_puct=5, n_playout=370)
