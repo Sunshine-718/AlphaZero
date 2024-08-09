@@ -1,14 +1,14 @@
 # AlphaZero for Connect Four  
 ## Environment
-python 3.12.3 64-bit  
-torch 2.3.0  
+```python 3.12``` 
+```torch 2.3.0```  
 
 ## How to install dependencies?
 Run the command lines below in terminal.
 ``` shell
 pip install -r requirements.txt
 ```
-Pytorch official site: [click here](https://pytorch.org)  
+Pytorch official website: [click here](https://pytorch.org)  
 If you prefer to run this code beyond cuda device, just simply run the code below to install the cpu version of Pytorch.
 ``` shell
 pip install torch
@@ -24,7 +24,7 @@ python3 human_play.py -o    # play as O
 ```
 and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column.  
 Optional argument:  
-`-s`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 100.
+`-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 100.
 ## How to train your own AlphaZero?
 Just open `train.ipynb` and run it __after backing up the latest parameter files__.  
 __*IMPORTANT!!!*__:  
