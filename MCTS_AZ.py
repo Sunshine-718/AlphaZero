@@ -50,13 +50,16 @@ class AlphaZeroPlayer:
     def reset_player(self):
         self.mcts.update_with_move(-1)
     
-    def get_action(self, env, temp=1e-3, dirichlet_alpha=0.3):
+    def get_action(self, env, temp=0, dirichlet_alpha=0.3):
         valid = env.valid_move()
         action_probs = np.zeros((7,), dtype=np.float32)
         if len(valid) > 0:
             actions, visits = self.mcts.get_action_visits(env, dirichlet_alpha)
-            probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
-            action = np.random.choice(actions, p=probs)
+            if temp == 0:
+                action = max(actions, key=lambda x: visits[actions.index(x)])
+            else:
+                probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
+                action = np.random.choice(actions, p=probs)
             probs = softmax(np.log(np.array(visits) + 1e-8))
             action_probs[list(actions)] = probs
             if self.is_selfplay:

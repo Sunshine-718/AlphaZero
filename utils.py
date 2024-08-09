@@ -136,6 +136,7 @@ def inspect(net, board=None):
         p0, v0 = net(state0)
         probs0 = torch.exp(p0).detach().cpu().numpy().flatten()
         value0 = v0.item()
+        board[5, 3] = 1
         state1 = torch.from_numpy(board_to_state(
             board, -1)).float().to(net.device)
         p1, v1 = net(state1)

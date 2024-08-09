@@ -52,11 +52,13 @@ class Network(Base):
                                     nn.Tanh(),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 8),
-                                         nn.SiLU(True),
+                                         nn.Tanh(),
                                          nn.Linear(h_dim * 8, out_dim),
                                          nn.LogSoftmax(dim=1))
         self.value_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 8),
-                                        nn.SiLU(True),
+                                        nn.LayerNorm(h_dim * 8),
+                                        nn.Dropout(0.2),
+                                        nn.Tanh(),
                                         nn.Linear(h_dim * 8, 1),
                                         nn.Tanh())
         self.device = device
@@ -105,18 +107,22 @@ class PolicyValueNet:
 
     def train_step(self, batch):
         self.net.train()
-        criterion = nn.KLDivLoss(reduction="batchmean")
         state, prob, value = batch
         self.opt.zero_grad()
         log_p_pred, value_pred = self.net(state)
         v_loss = F.smooth_l1_loss(value_pred, value)
         entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
-        p_loss = criterion(log_p_pred, prob)
+        p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
         loss = p_loss + v_loss
         loss.backward()
+        total_norm = 0
+        for param in self.net.parameters():
+            param_norm = param.grad.data.norm(2)
+            total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** 0.5
         self.opt.step()
         self.net.eval()
-        return loss.item(), entropy.item()
+        return p_loss.item(), v_loss.item(), entropy.item(), total_norm
 
     def save(self, params=None):
         if params is None:

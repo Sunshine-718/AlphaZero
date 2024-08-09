@@ -52,17 +52,19 @@ class TrainPipeline:
         return 1 - np.var(target - pred.flatten()) / np.var(target)
 
     def policy_update(self):
-        loss, entropy = [], []
+        p_loss, v_loss, entropy, grad_norm = [], [], [], []
         batch = self.buffer.sample(self.batch_size)
         batch = instant_augment(batch)
         old_probs, old_v = self.policy_value_net.policy_value(batch[0])
         for _ in range(self.epochs):
             set_learning_rate(self.policy_value_net.opt,
                               self.lr * self.lr_multiplier)
-            res = self.policy_value_net.train_step(batch)
+            p_l, v_l, ent, g_n = self.policy_value_net.train_step(batch)
             new_probs, new_v = self.policy_value_net.policy_value(batch[0])
-            loss.append(res[0])
-            entropy.append(res[1])
+            p_loss.append(p_l)
+            v_loss.append(v_l)
+            entropy.append(ent)
+            grad_norm.append(g_n)
             kl = np.mean(np.sum(
                 old_probs * (np.log(old_probs + 1e-10) - np.log(new_probs + 1e-10)), axis=1))
             if kl > self.kl_targ * 4:   # early stopping if D_KL diverges badly
@@ -78,7 +80,7 @@ class TrainPipeline:
               f'lr_multiplier: {self.lr_multiplier: .3f}\n'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
-        return np.mean(loss), np.mean(entropy)
+        return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm)
 
     def evaluation(self, description, player1, player2, win_counter, win_key, lose_key, draw_key, n_games):
         print(description)
@@ -120,12 +122,12 @@ class TrainPipeline:
             self.policy_value_net.net.device)
         writer.add_graph(self.policy_value_net.net, fake_input)
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
-                                    f'MCTS: {self.pure_mcts_n_playout}': 1500})
+                                          f'MCTS: {self.pure_mcts_n_playout}': 1500})
         for i in range(self.game_batch_num):
             self.collect_selfplay_data(self.play_batch_size)
-            loss, entropy = float('inf'), float('inf')
+            p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), float('inf'), float('inf')
             if len(self.buffer) > self.batch_size * 10:
-                loss, entropy = self.policy_update()
+                p_loss, v_loss, entropy, grad_norm = self.policy_update()
             else:
                 perc = round(len(self.buffer) /
                              (self.batch_size * 10) * 100, 1)
@@ -134,20 +136,23 @@ class TrainPipeline:
                 continue
             i = i - temp
             print(f'batch i: {i + 1}, episode_len: {self.episode_len}, '
-                  f'loss: {loss: .8f}, entropy: {entropy: .8f}')
+                  f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
+            writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
             if (i) % self.check_freq != 0:
                 continue
             print(f'current self-play batch: {i + 1}')
             r_a, r_b = self.policy_evaluate()
             p0, v0, p1, v1 = inspect(self.policy_value_net.net)
             writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': r_a,
-                                        f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
-            writer.add_scalar('Metric/Loss', loss, i)
+                                              f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
+            writer.add_scalars('Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
             writer.add_scalar('Metric/Entropy', entropy, i)
             writer.add_scalar('Metric/Episode length', self.episode_len, i)
             writer.add_scalars('Metric/Initial Value', {'X': v0, 'O': v1}, i)
-            writer.add_scalars('Action probability/X', {str(idx): i for idx, i in enumerate(p0)}, i)
-            writer.add_scalars('Action probability/O', {str(idx): i for idx, i in enumerate(p1)}, i)
+            writer.add_scalars('Action probability/X',
+                               {str(idx): i for idx, i in enumerate(p0)}, i)
+            writer.add_scalars('Action probability/O',
+                               {str(idx): i for idx, i in enumerate(p1)}, i)
             self.policy_value_net.save(current)
             if r_a > self.best_elo:
                 print('New best policy!!')
