@@ -58,7 +58,7 @@ class Network(Base):
                                          nn.LogSoftmax(dim=1))
         self.value_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 8),
                                         nn.LayerNorm(h_dim * 8),
-                                        nn.Dropout(0.2),
+                                        nn.Dropout(0.5),
                                         nn.Tanh(),
                                         nn.Linear(h_dim * 8, 1),
                                         nn.Tanh())
