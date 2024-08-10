@@ -21,8 +21,7 @@ args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-
-def run():
+if __name__ == '__main__':
     try:
         env = Env()
         game = Game(env)
@@ -44,7 +43,3 @@ def run():
                              f"<usage> python3 human_play.py -x [-o] [-n {args.n}]")
     except KeyboardInterrupt:
         print('\n\rquit')
-
-
-if __name__ == '__main__':
-    run()
