@@ -3,7 +3,7 @@
 # Written by: Sunshine
 # Created on: 25/Jun/2024  13:03
 import numpy as np
-from utils import check_winner, valid_move, valid_bin, place, check_draw, step, board_to_state
+from utils import check_winner, valid_move, place, check_draw, step, board_to_state
 
 
 class Env:
@@ -23,9 +23,6 @@ class Env:
 
     def valid_move(self):
         return valid_move(self.board)
-
-    def valid_bin(self):
-        return valid_bin(self.board)
 
     def switch_turn(self):
         self.turn = [0, -1, 1][self.turn]

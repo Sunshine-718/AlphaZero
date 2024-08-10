@@ -71,11 +71,6 @@ def valid_move(board):
 
 
 @jit(nopython=True)
-def valid_bin(board):
-    return np.array([1 if 0 in board[:, i] else 0 for i in range(board.shape[1])])
-
-
-@jit(nopython=True)
 def place(board, action, turn):
     if action in valid_move(board):
         row_index = max(np.where(board[:, action] == 0)[0])
