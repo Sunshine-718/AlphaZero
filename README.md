@@ -1,4 +1,6 @@
 # AlphaZero for Connect Four  
+## Keywords
+`AlphaGo Zero` `AlphaZero` `Monte Carlo Tree Search` `Reinforcement Learning (RL)` `Model-based RL` `Tree Search` `Heuristic Search` `Zero-sum Game`  
 ## Environment
 [`python 3.12`](https://www.python.org)  
 [`torch 2.3.0`](https://pytorch.org)  
@@ -17,14 +19,16 @@ pip install torch
 ## How to play connect four against AlphaZero?
 Type one of the command lines below in terminal:  
 ``` shell
-python3 human_play.py -x    # play as X
+python3 play.py -x    # play as X
 ```
 ``` shell
-python3 human_play.py -o    # play as O
+python3 play.py -o    # play as O
 ```
 and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column.  
 Optional argument:  
-`-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 100.
+`-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 100.  
+`--self_play`: AlphaZero will play against itself if using this option.  
+`--model`: AlphaZero's parameter file path, default: [`./params/AlphaZero_best.pt`](./params/AlphaZero_best.pt).  
 ## How to train your own AlphaZero?
 Just open [`train.ipynb`](./train.ipynb) and run it __after backing up the latest parameter files__.  
 __*IMPORTANT!!!*__:  
