@@ -35,7 +35,6 @@ class TrainPipeline:
         self.buffer.to(self.policy_value_net.device)
         self.elo = Elo(self.init_elo, 1500)
         self.best_elo = self.init_elo
-        input('Confirm to continue.')
 
     def collect_selfplay_data(self, n_games=1):
         self.az_player.train()
@@ -117,8 +116,22 @@ class TrainPipeline:
     
     def __call__(self):
         self.run()
+    
+    def show_hyperparams(self):
+        print('Hyperparameters:')
+        print(f'\tC_puct: {self.c_puct}')
+        print(f'\tSimulation (AlphaZero): {self.n_playout}')
+        print(f'\tSimulation (Benchmark): {self.pure_mcts_n_playout}')
+        print(f'\tDirichlet alpha: {self.dirichlet_alpha}')
+        print(f'\tBuffer size: {self.buffer_size}')
+        print(f'\tBatch size: {self.batch_size}')
+        print(f'\tRandom steps: {self.first_n_steps}')
+        print(f'\tDiscount: {self.discount}')
+        print(f'\tTemperature: {self.temp}')
+        print(f'\tInitial elo score: {self.init_elo}')
 
     def run(self):
+        self.show_hyperparams()
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
         temp = 0
@@ -128,16 +141,22 @@ class TrainPipeline:
         writer.add_graph(self.policy_value_net.net, fake_input)
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500})
+        preparing = True
         for i in range(self.game_batch_num):
             self.collect_selfplay_data(self.play_batch_size)
             p_loss, v_loss, entropy, grad_norm = float(
                 'inf'), float('inf'), float('inf'), float('inf')
             if len(self.buffer) > self.batch_size * 10:
+                if preparing:
+                    print(' ' * 100, end='\r')
+                    print('Preparation phase completed.')
+                    print('Start training...')
+                    preparing = False
                 p_loss, v_loss, entropy, grad_norm = self.policy_update()
             else:
                 perc = round(len(self.buffer) /
                              (self.batch_size * 10) * 100, 1)
-                print(f'Filling buffer: {perc}%')
+                print(f'Preparing for training: {perc}%', end='\r')
                 temp = i
                 continue
             i = i - temp

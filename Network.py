@@ -33,8 +33,10 @@ class Base(nn.Module):
                 self.load_state_dict(torch.load(path))
                 self.to(self.device)
             except Exception as e:
-                print(f'failed to load parameters\n{e}')
+                print(f'Failed to load parameters.\n{e}')
                 self.to(self.device)
+                input('Confirm to ramdomly initialize parameters.')
+                self.weight_init()
 
 
 class Network(Base):
