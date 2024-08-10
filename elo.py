@@ -11,8 +11,8 @@ class Elo:
     
     def update(self, result_a, k=32):
         """
-        :param result_a: 选手A的比赛结果(1胜，0.5平，0负)
-        :param k: K系数，影响评分变化的幅度，默认值32 
+        :param result_a: 1 (A win), 0.5 (draw), 0 (A lose).
+        :param k: factor, default: 32.
         """
         expected_a = 1 / (1 + pow(10, (self.R_B - self.R_A) / 400))
         expected_b = 1 / (1 + pow(10, (self.R_A - self.R_B) / 400))
