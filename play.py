@@ -14,7 +14,7 @@ from MCTS_AZ import AlphaZeroPlayer as MCTSPlayer
 parser = argparse.ArgumentParser(description='Play connect four against AlphaZero!')
 parser.add_argument('-x', action='store_true', help='Play as X')
 parser.add_argument('-o', action='store_true', help='Play as O')
-parser.add_argument('-n', type=int, default=1000, help='Number of simulations before AlphaZero make an action')
+parser.add_argument('-n', type=int, default=100, help='Number of simulations before AlphaZero make an action')
 parser.add_argument('--self_play', action='store_true', help='AlphaZero play against itself')
 parser.add_argument('--model', type=str, default='./params/AlphaZero_best.pt', help='Model file path')
 
