@@ -24,7 +24,9 @@ class TrainPipeline:
         self.params = './params'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    def init(self):
+    def init(self, config):
+        for key, value in config.items():
+            setattr(self, key, value)
         params = f'{self.params}/{self.name}_current.pt'
         self.buffer = ReplayBuffer(3, self.buffer_size, 7)
         self.policy_value_net = PolicyValueNet(self.lr, params, self.device)
@@ -112,6 +114,9 @@ class TrainPipeline:
         self.elo.update(1 if win_counter['Xwin']
                         else 0.5 if win_counter['Xdraw'] else 0)
         return self.elo.update(1 if win_counter['Owin'] else 0.5 if win_counter['Odraw'] else 0)
+    
+    def __call__(self):
+        self.run()
 
     def run(self):
         current = f'{self.params}/{self.name}_current.pt'
