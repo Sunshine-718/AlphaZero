@@ -3,6 +3,7 @@
 # Written by: Sunshine
 # Created on: 14/Jul/2024  18:54
 import numpy as np
+from player import Player
 from copy import deepcopy
 from operator import itemgetter
 
@@ -137,18 +138,22 @@ class MCTS:
         else:
             self.root = TreeNode(None, 1)
 
-class MCTSPlayer:
+class MCTSPlayer(Player):
     def __init__(self, c_puct=1, n_playout=2000):
+        super().__init__()
         self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
     
     def reset_player(self):
         self.mcts.update_with_move(-1)
     
-    def get_action(self, env):
+    def get_action(self, env, *, compute_winrate=False):
         valid = env.valid_move()
         if len(valid) > 0:
             action = self.mcts.get_action(env)
-            self.mcts.update_with_move(-1)
+            if compute_winrate:
+                Q = self.mcts.root.children[action].Q
+                self.win_rate = (Q + 1) / 2
+            self.reset_player()
             return action
         else:
             print('Warning: the board is full')

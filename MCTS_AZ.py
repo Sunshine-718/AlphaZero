@@ -3,8 +3,10 @@
 # Written by: Sunshine
 # Created on: 14/Jul/2024  19:36
 import numpy as np
-from copy import deepcopy
 from MCTS import MCTS
+from player import Player
+from copy import deepcopy
+
 
 def softmax(x):
     probs = np.exp(x - np.max(x))
@@ -36,8 +38,9 @@ class MCTS_AZ(MCTS):
         return actions, visits
 
 
-class AlphaZeroPlayer:
+class AlphaZeroPlayer(Player):
     def __init__(self, policy_value_fn, c_puct=5, n_playout=2000, is_selfplay=0):
+        super().__init__()
         self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
         self.is_selfplay = is_selfplay
 
@@ -50,7 +53,7 @@ class AlphaZeroPlayer:
     def reset_player(self):
         self.mcts.update_with_move(-1)
     
-    def get_action(self, env, temp=0, dirichlet_alpha=0.3):
+    def get_action(self, env, temp=0, dirichlet_alpha=0.3, *, compute_winrate=False):
         valid = env.valid_move()
         action_probs = np.zeros((7,), dtype=np.float32)
         if len(valid) > 0:
@@ -62,10 +65,13 @@ class AlphaZeroPlayer:
                 action = np.random.choice(actions, p=probs)
             probs = softmax(np.log(np.array(visits) + 1e-8))
             action_probs[list(actions)] = probs
+            if compute_winrate:
+                Q = self.mcts.root.children[action].Q
+                self.win_rate = (Q + 1) / 2
             if self.is_selfplay:
                 self.mcts.update_with_move(action)
             else:
-                self.mcts.update_with_move(-1)
+                self.reset_player()
             return action, action_probs
         else:
             print('WARNING: the board is full')

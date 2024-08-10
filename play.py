@@ -5,6 +5,7 @@
 import torch
 import argparse
 from config import config
+from player import Player
 from env import Env, Game
 from Network import PolicyValueNet
 from MCTS import MCTSPlayer as MCTS_Pure
@@ -23,23 +24,10 @@ args = parser.parse_args()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-class Human:
-    """
-    human player
-    """
-
-    def __init__(self):
-        self.player = None
-
-    def set_player_ind(self, p):
-        self.player = p
-
-    def get_action(self, board):
+class Human(Player):
+    def get_action(self, *args, **kwargs):
         move = int(input('Your move: '))
         return move, None
-
-    def __str__(self):
-        return "Human {}".format(self.player)
 
 
 def run():
