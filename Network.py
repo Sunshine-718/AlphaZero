@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 # Written by: Sunshine
 # Created on: 14/Jul/2024  20:41
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from config import network_config
 from torch.optim import Adam
+from config import network_config
 
 
 class Base(nn.Module):

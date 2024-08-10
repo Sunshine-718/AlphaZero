@@ -1,5 +1,5 @@
 numba
 numpy
 tqdm
-torch-tb-profiler
 tensorboard
+torch-tb-profiler

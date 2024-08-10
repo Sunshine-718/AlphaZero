@@ -5,11 +5,9 @@
 import torch
 import argparse
 from config import config
-from player import Player
 from env import Env, Game
 from Network import PolicyValueNet
-from MCTS import MCTSPlayer as MCTS_Pure
-from MCTS_AZ import AlphaZeroPlayer as MCTSPlayer
+from player import Human, MCTSPlayer, AlphaZeroPlayer
 
 
 parser = argparse.ArgumentParser(description='Play connect four against AlphaZero!')
@@ -24,21 +22,14 @@ args = parser.parse_args()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
-class Human(Player):
-    def get_action(self, *args, **kwargs):
-        move = int(input('Your move: '))
-        return move, None
-
-
 def run():
     try:
         env = Env()
         game = Game(env)
         policy_value_net = PolicyValueNet(0, args.model, device)
-        az_player = MCTSPlayer(policy_value_net.policy_value_fn, c_puct=config['c_puct'],
+        az_player = AlphaZeroPlayer(policy_value_net.policy_value_fn, c_puct=config['c_puct'],
                                n_playout=args.n, is_selfplay=0)
         az_player.eval()
-        # mcts_player = MCTS_Pure(c_puct=5, n_playout=370)
         human = Human()
         if args.x and args.o:
             game.start_play(human, human, show=1)

@@ -4,14 +4,14 @@
 # Created on: 14/Jul/2024  21:00
 import torch
 import numpy as np
+from elo import Elo
 from env import Env, Game
-from MCTS import MCTSPlayer
-from MCTS_AZ import AlphaZeroPlayer
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
-from utils import inspect, set_learning_rate, instant_augment
-from elo import Elo
+from player import MCTSPlayer, AlphaZeroPlayer
 from torch.utils.tensorboard import SummaryWriter
+from utils import inspect, set_learning_rate, instant_augment
+
 
 torch.set_float32_matmul_precision('high')
 
@@ -125,7 +125,8 @@ class TrainPipeline:
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500})
         for i in range(self.game_batch_num):
             self.collect_selfplay_data(self.play_batch_size)
-            p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), float('inf'), float('inf')
+            p_loss, v_loss, entropy, grad_norm = float(
+                'inf'), float('inf'), float('inf'), float('inf')
             if len(self.buffer) > self.batch_size * 10:
                 p_loss, v_loss, entropy, grad_norm = self.policy_update()
             else:
@@ -145,7 +146,8 @@ class TrainPipeline:
             p0, v0, p1, v1 = inspect(self.policy_value_net.net)
             writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': r_a,
                                               f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
-            writer.add_scalars('Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
+            writer.add_scalars(
+                'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
             writer.add_scalar('Metric/Entropy', entropy, i)
             writer.add_scalar('Metric/Episode length', self.episode_len, i)
             writer.add_scalars('Metric/Initial Value', {'X': v0, 'O': v1}, i)

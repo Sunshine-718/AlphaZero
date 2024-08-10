@@ -3,10 +3,11 @@
 # Written by: Sunshine
 # Created on: 25/Jun/2024  13:03
 import numpy as np
+from Environment import Environment
 from utils import check_winner, valid_move, place, check_draw, step, board_to_state
 
 
-class Env:
+class Env(Environment):
     def __init__(self):
         self.board = np.zeros((6, 7), dtype=np.float32)
         self.turn = 1
@@ -17,9 +18,6 @@ class Env:
     
     def done(self):
         return self.check_draw() or self.winPlayer() != 0
-
-    def state(self):
-        return board_to_state(self.board, self.turn)
 
     def valid_move(self):
         return valid_move(self.board)
@@ -72,10 +70,10 @@ class Game:
             current_turn = self.env.turn
             player = players[current_turn]
             action = player.get_action(self.env)
-            _, _, done, _ = self.env.step(action[0])
+            self.env.step(action[0])
             if show:
                 self.env.show()
-            if done:
+            if self.env.done():
                 winner = self.env.winPlayer()
                 if show:
                     if winner != 0:
@@ -97,10 +95,10 @@ class Game:
             states.append(self.env.current_state())
             mcts_probs.append(probs)
             current_players.append(self.env.turn)
-            _, _, done, _ = self.env.step(action)
+            self.env.step(action)
             if show:
                 self.env.show()
-            if done:
+            if self.env.done():
                 winner = self.env.winPlayer()
                 winner_z = np.zeros(len(current_players))
                 if winner != 0:
