@@ -6,6 +6,7 @@ import torch
 import numpy as np
 from numba import jit
 from copy import deepcopy
+from operator import itemgetter
 
 
 @jit(nopython=True)
@@ -58,6 +59,23 @@ def check_winner(board):
     return 0
 
 
+def evaluate_rollout(env, limit=1000):
+    player = env.turn
+    for _ in range(limit):
+        if env.done():
+            break
+        action_probs = rollout_policy_fn(env)
+        max_action = max(action_probs, key=itemgetter(1))[0]
+        env.step(max_action)
+    else:
+        print('Warning: rollout reached move limit.')
+    winner = env.winPlayer()
+    if winner == 0:
+        return 0
+    else:
+        return 1 if winner == player else -1
+
+
 def inspect(net, board=None):
     if board is None:
         board = np.array([[0, 0, 0, 0, 0, 0, 0],
@@ -105,12 +123,23 @@ def place(board, action, turn):
     return False
 
 
+def policy_value_fn(env):
+    valid = env.valid_move()
+    action_probs = np.ones(len(valid)) / len(valid)
+    return list(zip(valid, action_probs)), evaluate_rollout(deepcopy(env))
+
+
 def print_row(action, probX, probO, max_X, max_O):
     print('⭐️ ' if probX == max_X else '   ', end='')
     print(f'action: {action}, prob_X: {probX * 100: 02.2f}%', end='\t')
     print('⭐️ ' if probO == max_O else '   ', end='')
     print(f'action: {action}, prob_O: {probO * 100: 02.2f}%')
 
+
+def rollout_policy_fn(env):
+    valid = env.valid_move()
+    probs = np.random.rand(len(valid))
+    return list(zip(valid, probs))
 
 
 def set_learning_rate(optimizer, lr):

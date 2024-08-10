@@ -3,9 +3,8 @@
 # Written by: Sunshine
 # Created on: 10/Aug/2024  23:47
 import numpy as np
-from utils import softmax
-from MCTS_AZ import MCTS_AZ
-from MCTS import MCTS, policy_value_fn
+from utils import softmax, policy_value_fn
+from MCTS import MCTS, MCTS_AZ
 
 
 class Player:

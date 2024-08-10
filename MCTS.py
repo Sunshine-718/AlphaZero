@@ -5,36 +5,6 @@
 import numpy as np
 from copy import deepcopy
 from TreeRep import TreeNode
-from operator import itemgetter
-
-
-def rollout_policy_fn(env):
-    valid = env.valid_move()
-    probs = np.random.rand(len(valid))
-    return list(zip(valid, probs))
-
-
-def evaluate_rollout(env, limit=1000):
-    player = env.turn
-    for _ in range(limit):
-        if env.done():
-            break
-        action_probs = rollout_policy_fn(env)
-        max_action = max(action_probs, key=itemgetter(1))[0]
-        env.step(max_action)
-    else:
-        print('Warning: rollout reached move limit.')
-    winner = env.winPlayer()
-    if winner == 0:
-        return 0
-    else:
-        return 1 if winner == player else -1
-
-
-def policy_value_fn(env):
-    valid = env.valid_move()
-    action_probs = np.ones(len(valid)) / len(valid)
-    return list(zip(valid, action_probs)), evaluate_rollout(deepcopy(env))
 
 
 class MCTS:
@@ -77,3 +47,29 @@ class MCTS:
             self.root.parent = None
         else:
             self.root = TreeNode(None, 1)
+
+
+class MCTS_AZ(MCTS):
+    def playout(self, env, dirichlet_alpha=0.3):
+        node = self.select_leaf_node(env)
+        action_probs, leaf_value = self.policy(env)
+        if not env.done():
+            if dirichlet_alpha is not None:
+                noise = np.random.dirichlet([dirichlet_alpha for _ in action_probs])
+            else:
+                noise = None
+            node.expand(action_probs, noise)
+        else:
+            winner = env.winPlayer()
+            if winner == 0:
+                leaf_value = 0
+            else:
+                leaf_value = (1 if winner == env.turn else -1)
+        node.update(-leaf_value)
+
+    def get_action_visits(self, env, dirichlet_alpha=0.3):
+        for _ in range(self.n_playout):
+            self.playout(deepcopy(env), dirichlet_alpha)
+        act_visits = [(action, node.n_visits) for action, node in self.root.children.items()]
+        actions, visits = zip(*act_visits)
+        return actions, visits
