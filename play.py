@@ -10,12 +10,16 @@ from Network import PolicyValueNet
 from player import Human, MCTSPlayer, AlphaZeroPlayer
 
 
-parser = argparse.ArgumentParser(description='Play connect four against AlphaZero!')
+parser = argparse.ArgumentParser(
+    description='Play connect four against AlphaZero!')
 parser.add_argument('-x', action='store_true', help='Play as X')
 parser.add_argument('-o', action='store_true', help='Play as O')
-parser.add_argument('-n', type=int, default=500, help='Number of simulations before AlphaZero make an action')
-parser.add_argument('--self_play', action='store_true', help='AlphaZero play against itself')
-parser.add_argument('--model', type=str, default='./params/AlphaZero_best.pt', help='Model file path')
+parser.add_argument('-n', type=int, default=500,
+                    help='Number of simulations before AlphaZero make an action')
+parser.add_argument('--self_play', action='store_true',
+                    help='AlphaZero play against itself')
+parser.add_argument('--model', type=str,
+                    default='./params/AlphaZero_best.pt', help='Model file path')
 
 args = parser.parse_args()
 
@@ -27,7 +31,7 @@ if __name__ == '__main__':
         game = Game(env)
         policy_value_net = PolicyValueNet(0, args.model, device)
         az_player = AlphaZeroPlayer(policy_value_net.policy_value_fn, c_puct=config['c_puct'],
-                               n_playout=args.n, is_selfplay=0)
+                                    n_playout=args.n, is_selfplay=0)
         az_player.eval()
         human = Human()
         if args.x and args.o:
@@ -39,7 +43,7 @@ if __name__ == '__main__':
         elif args.self_play and not (args.x or args.o):
             game.start_play(az_player, az_player, show=1)
         else:
-            raise ValueError('Invalid option\n'
-                             f"Type 'python3 ./play.py -h' for help")
+            raise AttributeError('Invalid option\n'
+                                 f"Type 'python3 ./play.py -h' for help")
     except KeyboardInterrupt:
         print('\n\rquit')
