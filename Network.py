@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
 from config import network_config
+from utils import instant_augment
 
 
 class Base(nn.Module):
@@ -110,24 +111,30 @@ class PolicyValueNet:
         action_probs = list(zip(valid, probs.flatten()[valid]))
         return action_probs, value.flatten()[0]
 
-    def train_step(self, batch):
+    def train_step(self, dataloader):
         self.net.train()
-        state, prob, value = batch
-        self.opt.zero_grad()
-        log_p_pred, value_pred = self.net(state)
-        v_loss = F.smooth_l1_loss(value_pred, value)
-        entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
-        p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
-        loss = p_loss + v_loss
-        loss.backward()
-        total_norm = 0
-        for param in self.net.parameters():
-            param_norm = param.grad.data.norm(2)
-            total_norm += param_norm.item() ** 2
-        total_norm = total_norm ** 0.5
-        self.opt.step()
+        P_LOSS, V_LOSS, ENTROPY, TOTAL_NORM = [], [], [], []
+        for batch in dataloader:
+            state, prob, value = instant_augment(batch)
+            self.opt.zero_grad()
+            log_p_pred, value_pred = self.net(state)
+            v_loss = F.smooth_l1_loss(value_pred, value)
+            entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
+            p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
+            loss = p_loss + v_loss
+            loss.backward()
+            total_norm = 0
+            for param in self.net.parameters():
+                param_norm = param.grad.data.norm(2)
+                total_norm += param_norm.item() ** 2
+            total_norm = total_norm ** 0.5
+            P_LOSS.append(p_loss.item())
+            V_LOSS.append(v_loss.item())
+            ENTROPY.append(entropy.item())
+            TOTAL_NORM.append(total_norm)
+            self.opt.step()
         self.net.eval()
-        return p_loss.item(), v_loss.item(), entropy.item(), total_norm
+        return np.mean(P_LOSS), np.mean(V_LOSS), np.mean(ENTROPY), np.mean(TOTAL_NORM)
 
     def save(self, params=None):
         if params is None:
