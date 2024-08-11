@@ -40,6 +40,6 @@ if __name__ == '__main__':
             game.start_play(az_player, az_player, show=1)
         else:
             raise ValueError('Invalid option\n'
-                             f"<usage> python3 human_play.py -x [-o] [-n {args.n}]")
+                             f"Type 'python3 ./play.py -h' for help")
     except KeyboardInterrupt:
         print('\n\rquit')
