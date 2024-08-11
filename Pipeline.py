@@ -69,7 +69,7 @@ class TrainPipeline:
         print(f'kl: {kl: .5f}\n'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
-        return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm)
+        return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new
 
     def evaluation(self, description, player1, player2, win_counter, win_key, lose_key, draw_key, n_games):
         print(description)
@@ -128,9 +128,10 @@ class TrainPipeline:
             self.policy_value_net.net.device)
         writer.add_graph(self.policy_value_net.net, fake_input)
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
-                                          f'MCTS: {self.pure_mcts_n_playout}': 1500})
+                                          f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
         preparing = True
-        for i in range(self.game_batch_num):
+        i = 0
+        while True:
             self.collect_selfplay_data(self.play_batch_size)
             p_loss, v_loss, entropy, grad_norm = float(
                 'inf'), float('inf'), float('inf'), float('inf')
@@ -140,17 +141,17 @@ class TrainPipeline:
                     print('Preparation phase completed.')
                     print('Start training...')
                     preparing = False
-                p_loss, v_loss, entropy, grad_norm = self.policy_update()
+                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update()
+                i += 1
             else:
                 perc = round(len(self.buffer) /
                              (self.batch_size * 10) * 100, 1)
                 print(f'Preparing for training: {perc}%', end='\r')
-                temp = i
                 continue
-            i = i - temp
-            print(f'batch i: {i + 1}, episode_len: {self.episode_len}, '
+            print(f'batch i: {i}, episode_len: {self.episode_len}, '
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
             writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
+            writer.add_scalars('Metric/Explained variance', {'Old': ex_var_old, 'New': ex_var_new}, i)
             if (i) % self.check_freq != 0:
                 continue
             print(f'current self-play batch: {i + 1}')
@@ -173,4 +174,3 @@ class TrainPipeline:
                 self.best_elo = r_a
                 writer.add_scalar('Metric/Highest elo', self.best_elo, i)
                 self.policy_value_net.save(best)
-        writer.close()

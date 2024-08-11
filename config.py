@@ -9,7 +9,6 @@ config = {
     "discount": 0.99,
     "play_batch_size": 1,
     "check_freq": 10,
-    "game_batch_num": 10000000,
     "pure_mcts_n_playout": 1000,
     "dirichlet_alpha": 0.03,
     "init_elo": 1500
