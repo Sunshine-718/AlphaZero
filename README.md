@@ -26,7 +26,7 @@ python3 play.py -o    # play as O
 ```
 and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column.  
 Optional argument:  
-`-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 100.  
+`-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 500.  
 `--self_play`: AlphaZero will play against itself if using this option.  
 `--model`: AlphaZero's parameter file path, default: [`./params/AlphaZero_best.pt`](./params/AlphaZero_best.pt).  
 ## How to train your own AlphaZero?
