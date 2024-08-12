@@ -76,13 +76,13 @@ class TrainPipeline:
             if np.mean(kl) > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
         # adaptively adjust the learning rate
+        kl = np.mean(kl)
         if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
             self.lr_multiplier /= 1.5
         elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
             self.lr_multiplier *= 1.5
         explained_var_old = np.mean(ex_old)
         explained_var_new = np.mean(ex_new)
-        kl = np.mean(kl)
         print(f'kl: {kl: .5f}\n'
               f'lr_multiplier: {self.lr_multiplier: .3f}\n'
               f'explained_var_old: {explained_var_old: .3f}\n'
@@ -124,6 +124,7 @@ class TrainPipeline:
         self.run()
     
     def show_hyperparams(self):
+        print('=' * 50)
         print('Hyperparameters:')
         print(f'\tC_puct: {self.c_puct}')
         print(f'\tSimulation (AlphaZero): {self.n_playout}')
@@ -135,6 +136,7 @@ class TrainPipeline:
         print(f'\tDiscount: {self.discount}')
         print(f'\tTemperature: {self.temp}')
         print(f'\tInitial elo score: {self.init_elo}')
+        print('=' * 50)
 
     def run(self):
         self.show_hyperparams()
