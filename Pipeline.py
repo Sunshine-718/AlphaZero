@@ -5,6 +5,7 @@
 import torch
 import numpy as np
 from elo import Elo
+from config import network_config
 from env import Env, Game
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
@@ -28,7 +29,7 @@ class TrainPipeline:
         for key, value in config.items():
             setattr(self, key, value)
         params = f'{self.params}/{self.name}_current.pt'
-        self.buffer = ReplayBuffer(3, self.buffer_size, 7)
+        self.buffer = ReplayBuffer(network_config['in_dim'], self.buffer_size, network_config['out_dim'])
         self.policy_value_net = PolicyValueNet(self.lr, params, self.device)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
@@ -68,7 +69,7 @@ class TrainPipeline:
             entropy.append(ent)
             grad_norm.append(g_n)
             kl_temp = np.mean(np.sum(
-                old_probs * (np.log(old_probs + 1e-10) - np.log(new_probs + 1e-10)), axis=1))
+                old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
             kl.append(kl_temp)
             ex_old.append(self.explained_var(old_v, batch[-1]))
             ex_new.append(self.explained_var(new_v, batch[-1]))
