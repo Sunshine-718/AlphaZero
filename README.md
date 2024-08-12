@@ -16,7 +16,7 @@ If you prefer to run this code beyond cuda device, just simply run the code belo
 pip install torch
 ```
 
-## How to play connect four against AlphaZero?
+## How to play Connect4 against AlphaZero?
 Type one of the command lines below in terminal:  
 ``` shell
 python3 play.py -x    # play as X
