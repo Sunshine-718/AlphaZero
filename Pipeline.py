@@ -57,16 +57,28 @@ class TrainPipeline:
         batch = self.buffer.sample(self.batch_size)
         batch = instant_augment(batch)
         old_probs, old_v = self.policy_value_net.policy_value(batch[0])
-        p_l, v_l, ent, g_n = self.policy_value_net.train_step(self.buffer.dataloader(self.batch_size))
-        new_probs, new_v = self.policy_value_net.policy_value(batch[0])
-        p_loss.append(p_l)
-        v_loss.append(v_l)
-        entropy.append(ent)
-        grad_norm.append(g_n)
-        kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
+        for _ in range(self.epochs):
+            set_learning_rate(self.policy_value_net.opt,
+                              self.lr * self.lr_multiplier)
+            p_l, v_l, ent, g_n = self.policy_value_net.train_step(batch)
+            new_probs, new_v = self.policy_value_net.policy_value(batch[0])
+            p_loss.append(p_l)
+            v_loss.append(v_l)
+            entropy.append(ent)
+            grad_norm.append(g_n)
+            kl = np.mean(np.sum(
+                old_probs * (np.log(old_probs + 1e-10) - np.log(new_probs + 1e-10)), axis=1))
+            if kl > self.kl_targ * 4:   # early stopping if D_KL diverges badly
+                break
+        # adaptively adjust the learning rate
+        if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
+            self.lr_multiplier /= 1.5
+        elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
+            self.lr_multiplier *= 1.5
         explained_var_old = self.explained_var(old_v, batch[-1])
         explained_var_new = self.explained_var(new_v, batch[-1])
         print(f'kl: {kl: .5f}\n'
+              f'lr_multiplier: {self.lr_multiplier: .3f}\n'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
         return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new

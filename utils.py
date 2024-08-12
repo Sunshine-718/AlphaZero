@@ -141,6 +141,11 @@ def rollout_policy_fn(env):
     probs = np.random.rand(len(valid))
     return list(zip(valid, probs))
 
+
+def set_learning_rate(optimizer, lr):
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
         
 def softmax(x):
     probs = np.exp(x - np.max(x))
