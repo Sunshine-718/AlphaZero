@@ -19,6 +19,9 @@ class ReplayBuffer:
 
     def __len__(self):
         return min(self.count, len(self.state))
+    
+    def is_full(self):
+        return self.__len__() >= len(self.state)
 
     def reset(self):
         self.state = torch.full_like(
