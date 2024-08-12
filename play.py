@@ -19,7 +19,7 @@ parser.add_argument('-n', type=int, default=500,
 parser.add_argument('--self_play', action='store_true',
                     help='AlphaZero play against itself')
 parser.add_argument('--model', type=str,
-                    default='./params/AlphaZero_best.pt', help='Model file path')
+                    default='./params/AlphaZero_current.pt', help='Model file path')
 
 args = parser.parse_args()
 
