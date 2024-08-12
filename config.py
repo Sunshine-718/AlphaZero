@@ -1,5 +1,5 @@
 config = {
-    "lr": 2e-3,
+    "lr": 1e-3,
     "lr_multiplier": 1.0,
     "temp": 1.0,
     "n_playout": 100,
