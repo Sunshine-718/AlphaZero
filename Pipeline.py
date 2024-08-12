@@ -5,8 +5,8 @@
 import torch
 import numpy as np
 from elo import Elo
-from config import network_config
 from env import Env, Game
+from config import network_config
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from player import MCTSPlayer, AlphaZeroPlayer
