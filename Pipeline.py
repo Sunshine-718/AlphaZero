@@ -140,6 +140,7 @@ class TrainPipeline:
         print(f'\tDirichlet alpha: {self.dirichlet_alpha}')
         print(f'\tBuffer size: {self.buffer_size}')
         print(f'\tBatch size: {self.batch_size}')
+        print(f'\tSoft update rate: {self.soft_update_rate}')
         print(f'\tRandom steps: {self.first_n_steps}')
         print(f'\tDiscount: {self.discount}')
         print(f'\tTemperature: {self.temp}')
