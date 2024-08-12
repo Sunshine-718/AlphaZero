@@ -57,9 +57,10 @@ class TrainPipeline:
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
         kl, ex_old, ex_new = [], [], []
         if warm_up:
-            set_learning_rate(self.policy_value_net.opt, 1e-5)
+            set_learning_rate(self.policy_value_net.opt, self.warmup_lr)
         else:
-            set_learning_rate(self.policy_value_net.opt, self.lr * self.lr_multiplier)
+            self.lr = max(self.min_lr, self.lr * self.lr_discount)
+            set_learning_rate(self.policy_value_net.opt, self.lr)
         for _ in range(self.epochs):
             batch = self.buffer.sample(self.batch_size)
             batch = instant_augment(batch)
@@ -79,15 +80,9 @@ class TrainPipeline:
                 break
         # adaptively adjust the learning rate
         kl = np.mean(kl)
-        if not warm_up:
-            if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
-                self.lr_multiplier /= 1.5
-            elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
-                self.lr_multiplier *= 1.5
         explained_var_old = np.mean(ex_old)
         explained_var_new = np.mean(ex_new)
         print(f'kl: {kl: .5f}\n'
-              f'lr_multiplier: {self.lr_multiplier: .3f}\n'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
         return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new
@@ -160,6 +155,7 @@ class TrainPipeline:
             p_loss, v_loss, entropy, grad_norm = float(
                 'inf'), float('inf'), float('inf'), float('inf')
             if len(self.buffer) > self.batch_size * 10:
+                i += 1
                 if preparing:
                     print(' ' * 100, end='\r')
                     print('Preparation phase completed.')
@@ -167,8 +163,10 @@ class TrainPipeline:
                     preparing = False
                 if self.buffer.is_full():
                     warm_up = False
+                    writer.add_scalar('Metric/Learning rate', self.lr, i)
+                else:
+                    writer.add_scalar('Metric/Learning rate', self.warmup_lr, i)
                 p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update(warm_up)
-                i += 1
             else:
                 perc = round(len(self.buffer) /
                              (self.batch_size * 10) * 100, 1)
