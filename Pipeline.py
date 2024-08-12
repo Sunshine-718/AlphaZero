@@ -33,20 +33,29 @@ class TrainPipeline:
         self.policy_value_net = PolicyValueNet(self.lr, params, self.device)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
+        self.target_net = PolicyValueNet(0, params, self.device)
+        self.target_player = AlphaZeroPlayer(self.target_net, c_puct=self.c_puct,
+                                         n_playout=self.n_playout, is_selfplay=1)
+        self.soft_update(tau=1)
         self.buffer.to(self.policy_value_net.device)
         self.elo = Elo(self.init_elo, 1500)
         self.best_elo = self.init_elo
 
     def collect_selfplay_data(self, n_games=1):
-        self.az_player.train()
+        self.target_player.train()
         with torch.no_grad():
             for _ in range(n_games):
                 _, play_data = self.game.start_self_play(
-                    self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
+                    self.target_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
                 play_data = list(play_data)[:]
                 self.episode_len = len(play_data)
                 for data in play_data:
                     self.buffer.store(*data)
+    
+    def soft_update(self, tau=None):
+        tau = self.tau if tau is None else tau
+        for target_param, evaluation_param in zip(self.target_net.net.parameters(), self.policy_value_net.net.parameters()):
+            target_param.data.copy_(tau * evaluation_param.data + (1 - tau) * target_param.data)
 
     @staticmethod
     def explained_var(pred, target):
@@ -78,6 +87,7 @@ class TrainPipeline:
             ex_new.append(self.explained_var(new_v, batch[-1]))
             if np.mean(kl) > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
+        self.soft_update(self.soft_update_rate)
         # adaptively adjust the learning rate
         kl = np.mean(kl)
         explained_var_old = np.mean(ex_old)

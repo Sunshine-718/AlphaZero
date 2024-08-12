@@ -3,6 +3,7 @@ config = {
     "min_lr": 1e-4,
     "lr_discount": 0.9999,
     "warmup_lr": 1e-5,
+    "soft_update_rate": 5e-2,
     "temp": 1.0,
     "n_playout": 100,
     "first_n_steps": 5,
