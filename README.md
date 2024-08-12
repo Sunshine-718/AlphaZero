@@ -1,4 +1,4 @@
-# AlphaZero for Connect Four  
+# AlphaZero-Connect4  
 ## Keywords
 `AlphaGo Zero` `AlphaZero` `Monte Carlo Tree Search` `Reinforcement Learning (RL)` `Model-based RL` `Tree Search` `Heuristic Search` `Zero-sum Game`  
 ## Environment
