@@ -6,9 +6,9 @@ import torch
 import numpy as np
 from elo import Elo
 from env import Env, Game
-from config import network_config
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
+from config import config, network_config
 from player import MCTSPlayer, AlphaZeroPlayer
 from torch.utils.tensorboard import SummaryWriter
 from utils import inspect, set_learning_rate, instant_augment
@@ -53,15 +53,17 @@ class TrainPipeline:
         target = target.cpu().numpy().flatten()
         return 1 - np.var(target - pred.flatten()) / np.var(target)
 
-    def policy_update(self):
+    def policy_update(self, warm_up=False):
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
         kl, ex_old, ex_new = [], [], []
+        if warm_up:
+            set_learning_rate(self.policy_value_net.opt, 1e-5)
+        else:
+            set_learning_rate(self.policy_value_net.opt, self.lr * self.lr_multiplier)
         for _ in range(self.epochs):
             batch = self.buffer.sample(self.batch_size)
             batch = instant_augment(batch)
             old_probs, old_v = self.policy_value_net.policy_value(batch[0])
-            set_learning_rate(self.policy_value_net.opt,
-                              self.lr * self.lr_multiplier)
             p_l, v_l, ent, g_n = self.policy_value_net.train_step(batch)
             new_probs, new_v = self.policy_value_net.policy_value(batch[0])
             p_loss.append(p_l)
@@ -77,10 +79,11 @@ class TrainPipeline:
                 break
         # adaptively adjust the learning rate
         kl = np.mean(kl)
-        if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
-            self.lr_multiplier /= 1.5
-        elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
-            self.lr_multiplier *= 1.5
+        if not warm_up:
+            if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
+                self.lr_multiplier /= 1.5
+            elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
+                self.lr_multiplier *= 1.5
         explained_var_old = np.mean(ex_old)
         explained_var_new = np.mean(ex_new)
         print(f'kl: {kl: .5f}\n'
@@ -150,6 +153,7 @@ class TrainPipeline:
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
         preparing = True
+        warm_up = True
         i = 0
         while True:
             self.collect_selfplay_data(self.play_batch_size)
@@ -161,7 +165,9 @@ class TrainPipeline:
                     print('Preparation phase completed.')
                     print('Start training...')
                     preparing = False
-                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update()
+                if self.buffer.is_full():
+                    warm_up = False
+                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update(warm_up)
                 i += 1
             else:
                 perc = round(len(self.buffer) /
