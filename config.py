@@ -4,7 +4,7 @@ config = {
     "temp": 1.0,
     "n_playout": 100,
     "first_n_steps": 5,
-    "c_puct": 4,
+    "c_puct": 1.5,
     "buffer_size": 10000,
     "batch_size": 128,
     "discount": 0.99,
