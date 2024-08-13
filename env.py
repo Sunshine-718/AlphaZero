@@ -11,10 +11,6 @@ class Env(Environment):
     def __init__(self):
         self.board = np.zeros((6, 7), dtype=np.float32)
         self.turn = 1
-
-    def reset(self):
-        self.__init__()
-        return self.board
     
     def done(self):
         return self.check_draw() or self.winPlayer() != 0

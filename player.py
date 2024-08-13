@@ -3,11 +3,13 @@
 # Written by: Sunshine
 # Created on: 10/Aug/2024  23:47
 import numpy as np
-from utils import softmax, policy_value_fn
 from MCTS import MCTS, MCTS_AZ
+from abc import abstractmethod, ABC
+from utils import softmax, policy_value_fn
 
 
-class Player:
+
+class Player(ABC):
     def __init__(self):
         self.win_rate = float('nan')
         self.mcts = None
@@ -21,6 +23,7 @@ class Player:
     def eval(self):
         raise NotImplementedError
 
+    @abstractmethod
     def get_action(self, *args, **kwargs):
         raise NotImplementedError
 

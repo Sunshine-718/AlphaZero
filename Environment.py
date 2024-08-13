@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 # Written by: Sunshine
 # Created on: 10/Aug/2024  23:47
+from abc import abstractmethod, ABC
 
 
-class Environment:
+class Environment(ABC):
     def __init__(self):
         self.board = None
         self.turn = None    # Recommended: 1 for X and -1 for O
@@ -19,30 +20,35 @@ class Environment:
         """
         return self.check_draw() or self.winPlayer() != 0
 
+    @abstractmethod
     def valid_move(self):
         """
         Function to return valid action based on current board.
         """
         raise NotImplementedError
 
+    @abstractmethod
     def switch_turn(self):
         """
         Function to switch the player's turn, i.e., from X to O or from O to X.
         """
         raise NotImplementedError
 
+    @abstractmethod
     def place(self, *args, **kwargs):
         """
         Function to place the piece to the board
         """
         raise NotImplementedError
 
+    @abstractmethod
     def check_draw(self):
         """
         Function to check whether the game is draw.
         """
         raise NotImplementedError
 
+    @abstractmethod
     def winPlayer(self):
         """
         Function to check the winner.
@@ -50,12 +56,14 @@ class Environment:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def current_state(self):
         """
         Function to return the processed state as the input of the neural network.
         """
         raise NotImplementedError
 
+    @abstractmethod
     def step(self, *args, **kwargs):
         """
         Function to place the piece and switch the turn.
@@ -63,6 +71,7 @@ class Environment:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def show(self):
         """
         Function to show the board.

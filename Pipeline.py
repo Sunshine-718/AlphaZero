@@ -33,7 +33,7 @@ class TrainPipeline:
         self.policy_value_net = PolicyValueNet(self.lr, params, self.device)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
-        self.target_net = PolicyValueNet(0, params, self.device)
+        self.target_net = PolicyValueNet(0, None, self.device)
         self.target_player = AlphaZeroPlayer(self.target_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.soft_update(tau=1)
@@ -87,6 +87,7 @@ class TrainPipeline:
             ex_new.append(self.explained_var(new_v, batch[-1]))
             if np.mean(kl) > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
+        self.soft_update_rate = max(self.min_soft_update_rate, self.soft_update_rate * self.soft_update_discount)
         self.soft_update(self.soft_update_rate)
         # adaptively adjust the learning rate
         kl = np.mean(kl)
@@ -141,6 +142,7 @@ class TrainPipeline:
         print(f'\tBuffer size: {self.buffer_size}')
         print(f'\tBatch size: {self.batch_size}')
         print(f'\tSoft update rate: {self.soft_update_rate}')
+        print(f'\tSoft update rate discount: {self.soft_update_discount}')
         print(f'\tRandom steps: {self.first_n_steps}')
         print(f'\tDiscount: {self.discount}')
         print(f'\tTemperature: {self.temp}')
@@ -177,6 +179,7 @@ class TrainPipeline:
                     writer.add_scalar('Metric/Learning rate', self.lr, i)
                 else:
                     writer.add_scalar('Metric/Learning rate', self.warmup_lr, i)
+                writer.add_scalar('Metric/Soft update rate', self.soft_update_rate, i)
                 p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update(warm_up)
             else:
                 perc = round(len(self.buffer) /
