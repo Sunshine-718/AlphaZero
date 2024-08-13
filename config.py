@@ -5,7 +5,7 @@ config = {
     "warmup_lr": 1e-5,
     "soft_update_rate": 1,
     "min_soft_update_rate": 5e-2,
-    "soft_update_discount": 0.998,
+    "soft_update_discount": 0.9999,
     "temp": 1.0,
     "n_playout": 100,
     "first_n_steps": 5,
