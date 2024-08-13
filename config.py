@@ -1,11 +1,8 @@
 config = {
     "lr": 1e-3,
-    "min_lr": 1e-4,
+    "min_lr": 2e-4,
     "lr_discount": 0.9999,
     "warmup_lr": 1e-5,
-    "soft_update_rate": 1,
-    "min_soft_update_rate": 5e-2,
-    "soft_update_discount": 0.9999,
     "temp": 1.0,
     "n_playout": 100,
     "first_n_steps": 5,

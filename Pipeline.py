@@ -33,29 +33,19 @@ class TrainPipeline:
         self.policy_value_net = PolicyValueNet(self.lr, params, self.device)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
-        self.target_net = PolicyValueNet(0, None, self.device)
-        self.target_player = AlphaZeroPlayer(self.target_net, c_puct=self.c_puct,
-                                         n_playout=self.n_playout, is_selfplay=1)
-        self.soft_update(tau=1)
         self.buffer.to(self.policy_value_net.device)
         self.elo = Elo(self.init_elo, 1500)
         self.best_elo = self.init_elo
 
     def collect_selfplay_data(self, n_games=1):
-        self.target_player.train()
+        self.az_player.train()
         with torch.no_grad():
             for _ in range(n_games):
-                _, play_data = self.game.start_self_play(
-                    self.target_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
+                _, play_data = self.game.start_self_play(self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
                 play_data = list(play_data)[:]
                 self.episode_len = len(play_data)
                 for data in play_data:
                     self.buffer.store(*data)
-    
-    def soft_update(self, tau=None):
-        tau = self.tau if tau is None else tau
-        for target_param, evaluation_param in zip(self.target_net.net.parameters(), self.policy_value_net.net.parameters()):
-            target_param.data.copy_(tau * evaluation_param.data + (1 - tau) * target_param.data)
 
     @staticmethod
     def explained_var(pred, target):
@@ -87,8 +77,6 @@ class TrainPipeline:
             ex_new.append(self.explained_var(new_v, batch[-1]))
             if np.mean(kl) > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
-        self.soft_update_rate = max(self.min_soft_update_rate, self.soft_update_rate * self.soft_update_discount)
-        self.soft_update(self.soft_update_rate)
         # adaptively adjust the learning rate
         kl = np.mean(kl)
         explained_var_old = np.mean(ex_old)
@@ -141,8 +129,6 @@ class TrainPipeline:
         print(f'\tDirichlet alpha: {self.dirichlet_alpha}')
         print(f'\tBuffer size: {self.buffer_size}')
         print(f'\tBatch size: {self.batch_size}')
-        print(f'\tSoft update rate: {self.soft_update_rate}')
-        print(f'\tSoft update rate discount: {self.soft_update_discount}')
         print(f'\tRandom steps: {self.first_n_steps}')
         print(f'\tDiscount: {self.discount}')
         print(f'\tTemperature: {self.temp}')
@@ -179,7 +165,6 @@ class TrainPipeline:
                     writer.add_scalar('Metric/Learning rate', self.lr, i)
                 else:
                     writer.add_scalar('Metric/Learning rate', self.warmup_lr, i)
-                writer.add_scalar('Metric/Soft update rate', self.soft_update_rate, i)
                 p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update(warm_up)
             else:
                 perc = round(len(self.buffer) /
