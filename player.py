@@ -39,9 +39,10 @@ class NetworkPlayer(Player):
     def eval(self):
         self.net.eval()
     
-    def get_action(self, env):
+    def get_action(self, env, *, compute_winrate=False):
         action_probs, value = self.net(env)
-        self.win_rate = (value + 1) / 2
+        if compute_winrate:
+            self.win_rate = (value + 1) / 2
         return max(action_probs, key=lambda x: x[1])[0], None
 
 
@@ -67,7 +68,7 @@ class MCTSPlayer(Player):
                 Q = self.mcts.root.children[action].Q
                 self.win_rate = (Q + 1) / 2
             self.reset_player()
-            return action
+            return action, None
         else:
             print('Warning: the board is full')
 
