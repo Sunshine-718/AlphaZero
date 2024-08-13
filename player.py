@@ -40,7 +40,8 @@ class NetworkPlayer(Player):
         self.net.eval()
     
     def get_action(self, env):
-        action_probs, _ = self.net(env)
+        action_probs, value = self.net(env)
+        self.win_rate = (value + 1) / 2
         return max(action_probs, key=lambda x: x[1])[0], None
 
 
