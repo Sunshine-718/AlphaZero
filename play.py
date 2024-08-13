@@ -7,7 +7,7 @@ import argparse
 from config import config
 from env import Env, Game
 from Network import PolicyValueNet
-from player import Human, MCTSPlayer, AlphaZeroPlayer
+from player import Human, MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 
 
 parser = argparse.ArgumentParser(
@@ -30,8 +30,11 @@ if __name__ == '__main__':
         env = Env()
         game = Game(env)
         policy_value_net = PolicyValueNet(0, args.model, device)
-        az_player = AlphaZeroPlayer(policy_value_net.policy_value_fn, c_puct=config['c_puct'],
-                                    n_playout=args.n, is_selfplay=0)
+        if args.n == 0:
+            az_player = NetworkPlayer(policy_value_net)
+        else:
+            az_player = AlphaZeroPlayer(policy_value_net.policy_value_fn, c_puct=config['c_puct'],
+                                        n_playout=args.n, is_selfplay=0)
         az_player.eval()
         human = Human()
         if args.x and args.o:

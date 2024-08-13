@@ -28,6 +28,22 @@ class Player(ABC):
         raise NotImplementedError
 
 
+class NetworkPlayer(Player):
+    def __init__(self, net):
+        super().__init__()
+        self.net = net
+    
+    def train(self):
+        self.net.train()
+    
+    def eval(self):
+        self.net.eval()
+    
+    def get_action(self, env):
+        action_probs, _ = self.net(env)
+        return max(action_probs, key=lambda x: x[1])[0], None
+
+
 class Human(Player):
     def get_action(self, *args, **kwargs):
         move = int(input('Your move: '))
