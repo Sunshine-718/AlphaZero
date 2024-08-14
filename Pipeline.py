@@ -73,8 +73,8 @@ class TrainPipeline:
             kl_temp = np.mean(np.sum(
                 old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
             kl.append(kl_temp)
-            ex_old.append(self.explained_var(old_v, batch[-1]))
-            ex_new.append(self.explained_var(new_v, batch[-1]))
+            ex_old.append(self.explained_var(old_v, batch[2]))
+            ex_new.append(self.explained_var(new_v, batch[2]))
             if np.mean(kl) > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
         # adaptively adjust the learning rate

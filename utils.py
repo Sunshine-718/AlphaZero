@@ -103,15 +103,19 @@ def inspect(net, board=None):
 
 
 def instant_augment(batch):
-    state, prob, value = deepcopy(batch)
+    state, prob, value, next_state = deepcopy(batch)
     for idx, i in enumerate(state):
         for idx_j, j in enumerate(i):
             state[idx, idx_j] = torch.fliplr(j)
         prob[[idx]] = torch.fliplr(prob[[idx]])
+    for idx, i in enumerate(next_state):
+        for idx_j, j in enumerate(i):
+            next_state[idx, idx_j] = torch.fliplr(j)
     state = torch.concat([state, batch[0]])
     prob = torch.concat([prob, batch[1]])
     value = torch.concat([value, batch[2]])
-    return state, prob, value
+    next_state = torch.concat([next_state, batch[3]])
+    return state, prob, value, next_state
 
 
 @jit(nopython=True)
