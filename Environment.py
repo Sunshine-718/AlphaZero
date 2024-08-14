@@ -10,10 +10,11 @@ class Environment(ABC):
         self.board = None
         self.turn = None    # Recommended: 1 for X and -1 for O
 
+    @abstractmethod
     def reset(self):
         self.__init__()
         return self.board
-    
+
     def done(self):
         """
         Function to check the game is done, including win, lose, draw

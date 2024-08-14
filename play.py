@@ -47,6 +47,6 @@ if __name__ == '__main__':
             game.start_play(az_player, az_player, show=1)
         else:
             raise AttributeError('Invalid option\n'
-                                 f"Type 'python3 ./play.py -h' for help")
+                                 "Type 'python3 ./play.py -h' for help")
     except KeyboardInterrupt:
         print('\n\rquit')

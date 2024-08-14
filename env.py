@@ -9,8 +9,13 @@ from utils import check_winner, valid_move, place, check_draw, step, board_to_st
 
 class Env(Environment):
     def __init__(self):
+        super().__init__()
         self.board = np.zeros((6, 7), dtype=np.float32)
         self.turn = 1
+
+    def reset(self):
+        self.__init__()
+        return self.board
 
     def done(self):
         return self.check_draw() or self.winPlayer() != 0
@@ -85,9 +90,11 @@ class Game:
         steps = 0
         while True:
             if steps < first_n_steps:
-                action, probs = player.get_action(self.env, temp, dirichlet_alpha, discount)
+                action, probs = player.get_action(
+                    self.env, temp, dirichlet_alpha, discount)
             else:
-                action, probs = player.get_action(self.env, 0, dirichlet_alpha, discount)
+                action, probs = player.get_action(
+                    self.env, 0, dirichlet_alpha, discount)
             steps += 1
             states.append(self.env.current_state())
             mcts_probs.append(probs)
@@ -106,7 +113,8 @@ class Game:
                             pow(discount, len(winner_z) - idx - 1)
                 if show:
                     if winner != 0:
-                        print(f"Game end. Wineer is Player: {[None, 'X', 'O'][int(winner)]}")
+                        print(f"Game end. Wineer is Player: {
+                              [None, 'X', 'O'][int(winner)]}")
                     else:
                         print('Game end. Draw')
                 return winner, zip(states, mcts_probs, winner_z)
