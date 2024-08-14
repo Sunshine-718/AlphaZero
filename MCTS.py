@@ -29,16 +29,16 @@ class MCTS:
             env.step(action)
         return node
 
-    def playout(self, env):
+    def playout(self, env, discount=0.99):
         node = self.select_leaf_node(env)
         action_probs, leaf_value = self.policy(env)
         if not env.done():
             node.expand(action_probs)
-        node.update(-leaf_value)
+        node.update(-leaf_value, discount)
 
-    def get_action(self, env):
+    def get_action(self, env, discount=0.99):
         for _ in range(self.n_playout):
-            self.playout(deepcopy(env))
+            self.playout(deepcopy(env), discount)
         return max(self.root.children.items(), key=lambda action_node: action_node[1].n_visits)
 
     def update_with_move(self, last_move):
@@ -50,7 +50,7 @@ class MCTS:
 
 
 class MCTS_AZ(MCTS):
-    def playout(self, env, dirichlet_alpha=0.3):
+    def playout(self, env, dirichlet_alpha=0.3, discount=0.99):
         node = self.select_leaf_node(env)
         action_probs, leaf_value = self.policy(env)
         if not env.done():
@@ -65,11 +65,11 @@ class MCTS_AZ(MCTS):
                 leaf_value = 0
             else:
                 leaf_value = (1 if winner == env.turn else -1)
-        node.update(-leaf_value)
+        node.update(-leaf_value, discount)
 
-    def get_action_visits(self, env, dirichlet_alpha=0.3):
+    def get_action_visits(self, env, dirichlet_alpha=0.3, discount=0.99):
         for _ in range(self.n_playout):
-            self.playout(deepcopy(env), dirichlet_alpha)
+            self.playout(deepcopy(env), dirichlet_alpha, discount)
         act_visits = [(action, node.n_visits) for action, node in self.root.children.items()]
         actions, visits = zip(*act_visits)
         return actions, visits

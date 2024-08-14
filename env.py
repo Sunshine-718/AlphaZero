@@ -11,7 +11,7 @@ class Env(Environment):
     def __init__(self):
         self.board = np.zeros((6, 7), dtype=np.float32)
         self.turn = 1
-    
+
     def done(self):
         return self.check_draw() or self.winPlayer() != 0
 
@@ -57,7 +57,7 @@ class Game:
     def __init__(self, env):
         self.env = env
 
-    def start_play(self, player1, player2, show=1):
+    def start_play(self, player1, player2, discount=0.99, show=1):
         self.env.reset()
         players = [None, player1, player2]
         if show:
@@ -65,7 +65,7 @@ class Game:
         while True:
             current_turn = self.env.turn
             player = players[current_turn]
-            action = player.get_action(self.env)
+            action = player.get_action(self.env, discount=discount)
             self.env.step(action[0])
             if show:
                 self.env.show()
@@ -73,7 +73,8 @@ class Game:
                 winner = self.env.winPlayer()
                 if show:
                     if winner != 0:
-                        print('Game end. Winner is', [None, 'X', 'O'][int(winner)])
+                        print('Game end. Winner is', [
+                              None, 'X', 'O'][int(winner)])
                     else:
                         print('Game end. Draw')
                 return winner
@@ -84,9 +85,9 @@ class Game:
         steps = 0
         while True:
             if steps < first_n_steps:
-                action, probs = player.get_action(self.env, temp, dirichlet_alpha)
+                action, probs = player.get_action(self.env, temp, dirichlet_alpha, discount)
             else:
-                action, probs = player.get_action(self.env, 0, dirichlet_alpha)
+                action, probs = player.get_action(self.env, 0, dirichlet_alpha, discount)
             steps += 1
             states.append(self.env.current_state())
             mcts_probs.append(probs)
@@ -101,10 +102,12 @@ class Game:
                     winner_z[np.array(current_players) == winner] = 1
                     winner_z[np.array(current_players) != winner] = -1
                     for idx, i in enumerate(winner_z):
-                        winner_z[idx] = i * pow(discount, len(winner_z) - idx - 1)
+                        winner_z[idx] = i * \
+                            pow(discount, len(winner_z) - idx - 1)
                 if show:
                     if winner != 0:
-                        print(f"Game end. Wineer is Player: {[None, 'X', 'O'][int(winner)]}")
+                        print(f"Game end. Wineer is Player: {
+                              [None, 'X', 'O'][int(winner)]}")
                     else:
                         print('Game end. Draw')
                 return winner, zip(states, mcts_probs, winner_z)

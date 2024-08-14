@@ -8,7 +8,6 @@ from abc import abstractmethod, ABC
 from utils import softmax, policy_value_fn
 
 
-
 class Player(ABC):
     def __init__(self):
         self.win_rate = float('nan')
@@ -32,13 +31,13 @@ class NetworkPlayer(Player):
     def __init__(self, net):
         super().__init__()
         self.net = net
-    
+
     def train(self):
         self.net.train()
-    
+
     def eval(self):
         self.net.eval()
-    
+
     def get_action(self, env, *, compute_winrate=False):
         action_probs, value = self.net(env)
         if compute_winrate:
@@ -56,14 +55,14 @@ class MCTSPlayer(Player):
     def __init__(self, c_puct=1, n_playout=2000):
         super().__init__()
         self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
-    
+
     def reset_player(self):
         self.mcts.update_with_move(-1)
-    
-    def get_action(self, env, *, compute_winrate=False):
+
+    def get_action(self, env, discount=0.99, *, compute_winrate=False):
         valid = env.valid_move()
         if len(valid) > 0:
-            action = self.mcts.get_action(env)
+            action = self.mcts.get_action(env, discount)
             if compute_winrate:
                 Q = self.mcts.root.children[action].Q
                 self.win_rate = (Q + 1) / 2
@@ -81,18 +80,18 @@ class AlphaZeroPlayer(Player):
 
     def train(self):
         self.mcts.train()
-    
+
     def eval(self):
         self.mcts.eval()
-    
+
     def reset_player(self):
         self.mcts.update_with_move(-1)
-    
-    def get_action(self, env, temp=0, dirichlet_alpha=0.3, *, compute_winrate=False):
+
+    def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=0.99, *, compute_winrate=False):
         valid = env.valid_move()
         action_probs = np.zeros((7,), dtype=np.float32)
         if len(valid) > 0:
-            actions, visits = self.mcts.get_action_visits(env, dirichlet_alpha)
+            actions, visits = self.mcts.get_action_visits(env, dirichlet_alpha, discount)
             if temp == 0:
                 action = max(actions, key=lambda x: visits[actions.index(x)])
             else:
@@ -110,4 +109,3 @@ class AlphaZeroPlayer(Player):
             return action, action_probs
         else:
             print('WARNING: the board is full')
-            

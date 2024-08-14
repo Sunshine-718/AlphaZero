@@ -45,9 +45,9 @@ class TreeNode:
     def select(self, c_puct):
         return max(self.children.items(), key=lambda action_node: action_node[1].ucb1(c_puct))
     
-    def update(self, leaf_value):
+    def update(self, leaf_value, discount):
         if self.parent:
-            self.parent.update(-leaf_value)
+            self.parent.update(-leaf_value * discount, discount)
         self.n_visits += 1
         self.Q += (leaf_value - self.Q) / self.n_visits # Q = ((n-1)*Q_old + leaf_value)/n
     
