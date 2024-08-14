@@ -106,8 +106,7 @@ class Game:
                             pow(discount, len(winner_z) - idx - 1)
                 if show:
                     if winner != 0:
-                        print(f"Game end. Wineer is Player: {
-                              [None, 'X', 'O'][int(winner)]}")
+                        print(f"Game end. Wineer is Player: {[None, 'X', 'O'][int(winner)]}")
                     else:
                         print('Game end. Draw')
                 return winner, zip(states, mcts_probs, winner_z)
