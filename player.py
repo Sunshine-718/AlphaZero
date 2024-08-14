@@ -68,7 +68,7 @@ class MCTSPlayer(Player):
                 Q = self.mcts.root.children[action].Q
                 self.win_rate = (Q + 1) / 2
             self.reset_player()
-            return action, None
+            return action
         else:
             print('Warning: the board is full')
 
