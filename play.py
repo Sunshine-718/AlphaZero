@@ -29,7 +29,7 @@ if __name__ == '__main__':
     try:
         env = Env()
         game = Game(env)
-        policy_value_net = PolicyValueNet(0, args.model, device)
+        policy_value_net = PolicyValueNet(0, config['discount'], args.model, device)
         if args.n == 0:
             az_player = NetworkPlayer(policy_value_net)
         else:

@@ -8,7 +8,7 @@ from elo import Elo
 from env import Env, Game
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
-from config import config, network_config
+from config import network_config
 from player import MCTSPlayer, AlphaZeroPlayer
 from torch.utils.tensorboard import SummaryWriter
 from utils import inspect, set_learning_rate, instant_augment
@@ -30,7 +30,7 @@ class TrainPipeline:
             setattr(self, key, value)
         params = f'{self.params}/{self.name}_current.pt'
         self.buffer = ReplayBuffer(network_config['in_dim'], self.buffer_size, network_config['out_dim'])
-        self.policy_value_net = PolicyValueNet(self.lr, params, self.device)
+        self.policy_value_net = PolicyValueNet(self.lr, self.discount, params, self.device, self.soft_update_rate)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.buffer.to(self.policy_value_net.device)
@@ -139,7 +139,6 @@ class TrainPipeline:
         self.show_hyperparams()
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
-        temp = 0
         writer = SummaryWriter(filename_suffix=self.name)
         fake_input = torch.randn(1, 3, 6, 7).to(
             self.policy_value_net.net.device)

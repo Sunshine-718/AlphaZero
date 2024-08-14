@@ -16,7 +16,8 @@ config = {
     "check_freq": 10,
     "pure_mcts_n_playout": 1000,
     "dirichlet_alpha": 0.7,   # depends on the size of action space
-    "init_elo": 1500
+    "init_elo": 1500,
+    "soft_update_rate": 5e-2
 }
 
 network_config = {"in_dim": 3,

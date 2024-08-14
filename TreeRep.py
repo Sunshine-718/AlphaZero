@@ -17,7 +17,7 @@ class TreeNode:
         self.deterministic = False
     
     def train(self):
-        if self.deterministic == True:
+        if self.deterministic is True:
             if not self.children:
                 self.deterministic = False
                 return
@@ -26,14 +26,14 @@ class TreeNode:
                 self.deterministic = False
 
     def eval(self):
-        if self.deterministic == False:
+        if self.deterministic is False:
             if not self.children:
                 self.deterministic = True
                 return
             for node in self.children.values():
                 node.eval()
                 self.deterministic = True
-    
+
     def expand(self, action_probs, noise=None):
         for idx, (action, prior) in enumerate(action_probs):
             if action not in self.children:
@@ -41,16 +41,16 @@ class TreeNode:
                     self.children[action] = TreeNode(self, prior, prior)
                 else:
                     self.children[action] = TreeNode(self, prior, noise[idx])
-    
+
     def select(self, c_puct):
         return max(self.children.items(), key=lambda action_node: action_node[1].ucb1(c_puct))
-    
+
     def update(self, leaf_value, discount):
         if self.parent:
             self.parent.update(-leaf_value * discount, discount)
         self.n_visits += 1
         self.Q += (leaf_value - self.Q) / self.n_visits # Q = ((n-1)*Q_old + leaf_value)/n
-    
+
     def ucb1(self, c_puct):
         if self.parent is not None and self.parent.is_root() and not self.deterministic:
             prior = 0.75 * self.prior + 0.25 * self.noise
@@ -60,7 +60,7 @@ class TreeNode:
         return self.Q + self.u
     
     def is_leaf(self):
-        return self.children == {}
+        return not self.children
     
     def is_root(self):
         return self.parent is None
