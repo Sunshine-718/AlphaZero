@@ -6,7 +6,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.utils import clip_grad_norm_
 from copy import deepcopy
 from torch.optim import NAdam
 from config import network_config
@@ -79,14 +78,22 @@ class Network(Base):
 
 
 class PolicyValueNet:
-    def __init__(self, lr, discount, params=None, device='cpu'):
+    def __init__(self, lr, discount, params=None, device='cpu', tau=5e-2):
         self.device = device
         self.params = params
         self.net = Network(lr, network_config['in_dim'], network_config['h_dim'], network_config['out_dim'], device)
+        self.target_net = Network(0, network_config['in_dim'], network_config['h_dim'], network_config['out_dim'], device)
         self.opt = self.net.opt
         self.discount = discount
+        self.tau = tau
         if params:
             self.net.load(params)
+        self.soft_update(1)
+
+    def soft_update(self, tau=None):
+        tau = self.tau if tau is None else tau
+        for target_param, evaluation_param in zip(self.target_net.parameters(), self.net.parameters()):
+            target_param.data.copy_(tau * evaluation_param.data + (1 - tau) * target_param.data)
 
     def train(self):
         self.net.train()
@@ -115,25 +122,29 @@ class PolicyValueNet:
 
     def train_step(self, batch):
         self.net.train()
-        state, prob, value, _ = batch
+        state, prob, value, next_state = batch
         oppo_state = deepcopy(state)
         oppo_state[:, -1, :, :] = -oppo_state[:, -1, :, :]
         self.opt.zero_grad()
         log_p_pred, value_pred = self.net(state)
         _, oppo_value_pred = self.net(oppo_state)
+        with torch.no_grad():
+            next_value = self.target_net(next_state)
+            value_target_td = -self.discount * next_value
         v_loss = F.smooth_l1_loss(value_pred, value)
         v_loss += F.smooth_l1_loss(oppo_value_pred, -value)
+        v_loss += F.smooth_l1_loss(value_pred, value_target_td)
         entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
         p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
         loss = p_loss + v_loss
         loss.backward()
-        clip_grad_norm_(self.net.parameters(), 1.0)
         total_norm = 0
         for param in self.net.parameters():
             param_norm = param.grad.data.norm(2)
             total_norm += param_norm.item() ** 2
         total_norm = total_norm ** 0.5
         self.opt.step()
+        self.soft_update()
         self.net.eval()
         return p_loss.item(), v_loss.item(), entropy.item(), total_norm
 
