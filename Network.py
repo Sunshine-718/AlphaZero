@@ -129,7 +129,7 @@ class PolicyValueNet:
         log_p_pred, value_pred = self.net(state)
         _, oppo_value_pred = self.net(oppo_state)
         with torch.no_grad():
-            next_value = self.target_net(next_state)
+            _, next_value = self.target_net(next_state)
             value_target_td = -self.discount * next_value
         v_loss = F.smooth_l1_loss(value_pred, value)
         v_loss += F.smooth_l1_loss(oppo_value_pred, -value)
