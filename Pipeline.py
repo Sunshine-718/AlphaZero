@@ -52,14 +52,9 @@ class TrainPipeline:
         target = target.cpu().numpy().flatten()
         return 1 - np.var(target - pred.flatten()) / np.var(target)
 
-    def policy_update(self, warm_up=False):
+    def policy_update(self):
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
         kl, ex_old, ex_new = [], [], []
-        if warm_up:
-            set_learning_rate(self.policy_value_net.opt, self.warmup_lr)
-        else:
-            self.lr = max(self.min_lr, self.lr * self.lr_discount)
-            set_learning_rate(self.policy_value_net.opt, self.lr)
         for _ in range(self.epochs):
             batch = self.buffer.sample(self.batch_size)
             batch = instant_augment(batch)
@@ -146,7 +141,6 @@ class TrainPipeline:
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
         preparing = True
-        warm_up = True
         i = 0
         while True:
             self.collect_selfplay_data(self.play_batch_size)
@@ -159,12 +153,7 @@ class TrainPipeline:
                     print('Preparation phase completed.')
                     print('Start training...')
                     preparing = False
-                if self.buffer.is_full():
-                    warm_up = False
-                    writer.add_scalar('Metric/Learning rate', self.lr, i)
-                else:
-                    writer.add_scalar('Metric/Learning rate', self.warmup_lr, i)
-                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update(warm_up)
+                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update()
             else:
                 perc = round(len(self.buffer) /
                              (self.batch_size * 10) * 100, 1)
