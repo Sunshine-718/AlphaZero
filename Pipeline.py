@@ -30,7 +30,7 @@ class TrainPipeline:
             setattr(self, key, value)
         params = f'{self.params}/{self.name}_current.pt'
         self.buffer = ReplayBuffer(network_config['in_dim'], self.buffer_size, network_config['out_dim'])
-        self.policy_value_net = PolicyValueNet(self.lr, self.discount, params, self.device)
+        self.policy_value_net = PolicyValueNet(self.lr, self.discount, params, self.device, self.soft_update_rate)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.buffer.to(self.policy_value_net.device)
@@ -52,9 +52,14 @@ class TrainPipeline:
         target = target.cpu().numpy().flatten()
         return 1 - np.var(target - pred.flatten()) / np.var(target)
 
-    def policy_update(self):
+    def policy_update(self, warm_up=False):
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
         kl, ex_old, ex_new = [], [], []
+        if warm_up:
+            set_learning_rate(self.policy_value_net.opt, self.warmup_lr)
+        else:
+            self.lr = max(self.min_lr, self.lr * self.lr_discount)
+            set_learning_rate(self.policy_value_net.opt, self.lr)
         for _ in range(self.epochs):
             batch = self.buffer.sample(self.batch_size)
             batch = instant_augment(batch)
@@ -141,6 +146,7 @@ class TrainPipeline:
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
         preparing = True
+        warm_up = True
         i = 0
         while True:
             self.collect_selfplay_data(self.play_batch_size)
@@ -153,9 +159,15 @@ class TrainPipeline:
                     print('Preparation phase completed.')
                     print('Start training...')
                     preparing = False
-                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update()
+                if self.buffer.is_full():
+                    warm_up = False
+                    writer.add_scalar('Metric/Learning rate', self.lr, i)
+                else:
+                    writer.add_scalar('Metric/Learning rate', self.warmup_lr, i)
+                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update(warm_up)
             else:
-                perc = round(len(self.buffer) / (self.batch_size * 10) * 100, 1)
+                perc = round(len(self.buffer) /
+                             (self.batch_size * 10) * 100, 1)
                 print(f'Preparing for training: {perc}%', end='\r')
                 continue
             print(f'batch i: {i}, episode_len: {self.episode_len}, '
