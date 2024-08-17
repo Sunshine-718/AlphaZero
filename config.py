@@ -1,5 +1,5 @@
 config = {
-    "lr": 3e-4,
+    "lr": 1e-3,
     "temp": 1.0,
     "n_playout": 100,
     "first_n_steps": 5,

@@ -24,6 +24,7 @@ class TrainPipeline:
         self.name = name
         self.params = './params'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.lr_multiplier = 1
 
     def init(self, config):
         for key, value in config.items():
@@ -54,29 +55,29 @@ class TrainPipeline:
 
     def policy_update(self):
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
-        kl, ex_old, ex_new = [], [], []
+        batch = self.buffer.sample(self.batch_size)
+        batch = instant_augment(batch)
+        old_probs, old_v = self.policy_value_net.policy_value(batch[0])
         for _ in range(self.epochs):
-            batch = self.buffer.sample(self.batch_size)
-            batch = instant_augment(batch)
-            old_probs, old_v = self.policy_value_net.policy_value(batch[0])
             p_l, v_l, ent, g_n = self.policy_value_net.train_step(batch)
             new_probs, new_v = self.policy_value_net.policy_value(batch[0])
             p_loss.append(p_l)
             v_loss.append(v_l)
             entropy.append(ent)
             grad_norm.append(g_n)
-            kl_temp = np.mean(np.sum(
+            kl = np.mean(np.sum(
                 old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-            kl.append(kl_temp)
-            ex_old.append(self.explained_var(old_v, batch[2]))
-            ex_new.append(self.explained_var(new_v, batch[2]))
             if np.mean(kl) > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
         # adaptively adjust the learning rate
-        kl = np.mean(kl)
-        explained_var_old = np.mean(ex_old)
-        explained_var_new = np.mean(ex_new)
+        if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
+            self.lr_multiplier /= 1.5
+        elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
+            self.lr_multiplier *= 1.5
+        explained_var_old = self.explained_var(old_v, batch[2])
+        explained_var_new = self.explained_var(new_v, batch[2])
         print(f'kl: {kl: .5f}\n'
+              f'lr_multiplier: {self.lr_multiplier}'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
         return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new
@@ -135,8 +136,7 @@ class TrainPipeline:
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
         writer = SummaryWriter(filename_suffix=self.name)
-        fake_input = torch.randn(1, 3, 6, 7).to(
-            self.policy_value_net.net.device)
+        fake_input = torch.randn(1, 3, 6, 7).to(self.policy_value_net.net.device)
         writer.add_graph(self.policy_value_net.net, fake_input)
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
@@ -144,8 +144,7 @@ class TrainPipeline:
         i = 0
         while True:
             self.collect_selfplay_data(self.play_batch_size)
-            p_loss, v_loss, entropy, grad_norm = float(
-                'inf'), float('inf'), float('inf'), float('inf')
+            p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), float('inf'), float('inf')
             if len(self.buffer) > self.batch_size * 10:
                 i += 1
                 if preparing:
@@ -154,6 +153,7 @@ class TrainPipeline:
                     print('Start training...')
                     preparing = False
                 p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new = self.policy_update()
+                writer.add_scalar('Metric/Learning rate', self.lr * self.lr_multiplier, i)
             else:
                 perc = round(len(self.buffer) /
                              (self.batch_size * 10) * 100, 1)
