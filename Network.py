@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from copy import deepcopy
-from torch.optim import NAdam
+from torch.optim import AdamW
 from config import network_config
 
 
@@ -68,7 +68,7 @@ class Network(Base):
                                         nn.Linear(h_dim * 4, 1),
                                         nn.Tanh())
         self.device = device
-        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=1e-4, decoupled_weight_decay=True)
+        self.opt = AdamW(self.parameters(), lr=lr, weight_decay=1e-4)
         self.weight_init()
         self.to(self.device)
 
