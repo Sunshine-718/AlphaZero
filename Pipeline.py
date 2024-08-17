@@ -11,7 +11,7 @@ from ReplayBuffer import ReplayBuffer
 from config import network_config
 from player import MCTSPlayer, AlphaZeroPlayer
 from torch.utils.tensorboard import SummaryWriter
-from utils import inspect, set_learning_rate, instant_augment
+from utils import inspect, instant_augment
 
 
 torch.set_float32_matmul_precision('high')
