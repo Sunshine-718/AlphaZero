@@ -14,7 +14,6 @@ config = {
     "pure_mcts_n_playout": 1000,
     "dirichlet_alpha": 0.03,   # depends on the size of action space
     "init_elo": 1500,
-    "soft_update_rate": 5e-3
 }
 
 network_config = {"in_dim": 3,

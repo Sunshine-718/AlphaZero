@@ -31,7 +31,7 @@ class TrainPipeline:
             setattr(self, key, value)
         params = f'{self.params}/{self.name}_current.pt'
         self.buffer = ReplayBuffer(network_config['in_dim'], self.buffer_size, network_config['out_dim'])
-        self.policy_value_net = PolicyValueNet(self.lr, self.discount, params, self.device, self.soft_update_rate)
+        self.policy_value_net = PolicyValueNet(self.lr, self.discount, params, self.device)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.buffer.to(self.policy_value_net.device)
