@@ -3,6 +3,7 @@
 # Written by: Sunshine
 # Created on: 14/Jul/2024  18:54
 import numpy as np
+import multiprocessing as mp
 from copy import deepcopy
 from TreeRep import TreeNode
 
@@ -55,7 +56,8 @@ class MCTS_AZ(MCTS):
         action_probs, leaf_value = self.policy(env)
         if not env.done():
             if dirichlet_alpha is not None:
-                noise = np.random.dirichlet([dirichlet_alpha for _ in action_probs])
+                noise = np.random.dirichlet(
+                    [dirichlet_alpha for _ in action_probs])
             else:
                 noise = None
             node.expand(action_probs, noise)
@@ -70,6 +72,7 @@ class MCTS_AZ(MCTS):
     def get_action_visits(self, env, dirichlet_alpha=0.3, discount=0.99):
         for _ in range(self.n_playout):
             self.playout(deepcopy(env), dirichlet_alpha, discount)
-        act_visits = [(action, node.n_visits) for action, node in self.root.children.items()]
+        act_visits = [(action, node.n_visits)
+                      for action, node in self.root.children.items()]
         actions, visits = zip(*act_visits)
         return actions, visits

@@ -52,9 +52,10 @@ class Human(Player):
 
 
 class MCTSPlayer(Player):
-    def __init__(self, c_puct=1, n_playout=2000):
+    def __init__(self, c_puct=1, n_playout=2000, num_worker=1):
         super().__init__()
-        self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
+        if num_worker == 1:
+            self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
 
     def reset_player(self):
         self.mcts.update_with_move(-1)
@@ -93,11 +94,11 @@ class AlphaZeroPlayer(Player):
         if len(valid) > 0:
             actions, visits = self.mcts.get_action_visits(env, dirichlet_alpha, discount)
             if temp == 0:
-                action = max(actions, key=lambda x: visits[actions.index(x)])
+                probs = np.zeros((len(visits),), dtype=np.float32)
+                probs[np.where(np.array(visits) == max(visits))] = 1 / list(visits).count(max(visits))
             else:
                 probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
-                action = np.random.choice(actions, p=probs)
-            probs = softmax(np.log(np.array(visits) + 1e-8))
+            action = np.random.choice(actions, p=probs)
             action_probs[list(actions)] = probs
             if compute_winrate:
                 Q = self.mcts.root.children[action].Q

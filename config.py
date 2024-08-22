@@ -1,5 +1,5 @@
 config = {
-    "lr": 1e-3,
+    "lr": 3e-4,
     "temp": 1.0,
     "n_playout": 100,
     "first_n_steps": 5,
@@ -17,5 +17,5 @@ config = {
 }
 
 network_config = {"in_dim": 3,
-                  "h_dim": 32,
+                  "h_dim": 128,
                   "out_dim": 7}
