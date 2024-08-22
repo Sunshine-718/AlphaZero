@@ -3,7 +3,6 @@
 # Written by: Sunshine
 # Created on: 14/Jul/2024  18:54
 import numpy as np
-import multiprocessing as mp
 from copy import deepcopy
 from TreeRep import TreeNode
 
