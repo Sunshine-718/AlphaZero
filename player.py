@@ -60,7 +60,7 @@ class MCTSPlayer(Player):
     def reset_player(self):
         self.mcts.update_with_move(-1)
 
-    def get_action(self, env, discount=0.99, *, compute_winrate=False):
+    def get_action(self, env, discount=1, *, compute_winrate=False):
         valid = env.valid_move()
         if len(valid) > 0:
             action = self.mcts.get_action(env, discount)
@@ -74,7 +74,7 @@ class MCTSPlayer(Player):
 
 
 class AlphaZeroPlayer(Player):
-    def __init__(self, policy_value_fn, c_puct=5, n_playout=2000, is_selfplay=0):
+    def __init__(self, policy_value_fn, c_puct=5, n_playout=1000, is_selfplay=0):
         super().__init__()
         self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
         self.is_selfplay = is_selfplay
@@ -88,7 +88,7 @@ class AlphaZeroPlayer(Player):
     def reset_player(self):
         self.mcts.update_with_move(-1)
 
-    def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=0.99, *, compute_winrate=False):
+    def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=1, *, compute_winrate=False):
         valid = env.valid_move()
         action_probs = np.zeros((7,), dtype=np.float32)
         if len(valid) > 0:

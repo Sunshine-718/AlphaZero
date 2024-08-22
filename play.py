@@ -38,13 +38,13 @@ if __name__ == '__main__':
         az_player.eval()
         human = Human()
         if args.x and args.o:
-            game.start_play(human, human, show=1)
+            game.start_play(human, human, config['discount'], show=1)
         elif args.x:
-            game.start_play(human, az_player, show=1)
+            game.start_play(human, az_player, config['discount'], show=1)
         elif args.o:
-            game.start_play(az_player, human, show=1)
+            game.start_play(az_player, human, config['discount'], show=1)
         elif args.self_play and not (args.x or args.o):
-            game.start_play(az_player, az_player, show=1)
+            game.start_play(az_player, az_player, config['discount'], show=1)
         else:
             raise AttributeError('Invalid option\n'
                                  "Type 'python3 ./play.py -h' for help")

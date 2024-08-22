@@ -62,7 +62,7 @@ class Game:
     def __init__(self, env):
         self.env = env
 
-    def start_play(self, player1, player2, discount=0.99, show=1):
+    def start_play(self, player1, player2, discount=1, show=1):
         self.env.reset()
         players = [None, player1, player2]
         if show:

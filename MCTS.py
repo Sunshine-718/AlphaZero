@@ -8,7 +8,7 @@ from TreeRep import TreeNode
 
 
 class MCTS:
-    def __init__(self, policy_value_fn, c_puct=1, n_playout=10000):
+    def __init__(self, policy_value_fn, c_puct=1, n_playout=1000):
         self.root = TreeNode(None, 1, None)
         self.policy = policy_value_fn
         self.c_puct = c_puct
@@ -29,14 +29,14 @@ class MCTS:
             env.step(action)
         return node
 
-    def playout(self, env, discount=0.99):
+    def playout(self, env, discount=1):
         node = self.select_leaf_node(env)
         action_probs, leaf_value = self.policy(env)
         if not env.done():
             node.expand(action_probs)
         node.update(-leaf_value, discount)
 
-    def get_action(self, env, discount=0.99):
+    def get_action(self, env, discount=1):
         for _ in range(self.n_playout):
             self.playout(deepcopy(env), discount)
         return max(self.root.children.items(), key=lambda action_node: action_node[1].n_visits)
@@ -50,7 +50,7 @@ class MCTS:
 
 
 class MCTS_AZ(MCTS):
-    def playout(self, env, dirichlet_alpha=0.3, discount=0.99):
+    def playout(self, env, dirichlet_alpha=0.3, discount=1):
         node = self.select_leaf_node(env)
         action_probs, leaf_value = self.policy(env)
         if not env.done():
@@ -68,7 +68,7 @@ class MCTS_AZ(MCTS):
                 leaf_value = (1 if winner == env.turn else -1)
         node.update(-leaf_value, discount)
 
-    def get_action_visits(self, env, dirichlet_alpha=0.3, discount=0.99):
+    def get_action_visits(self, env, dirichlet_alpha=0.3, discount=1):
         for _ in range(self.n_playout):
             self.playout(deepcopy(env), dirichlet_alpha, discount)
         act_visits = [(action, node.n_visits)
