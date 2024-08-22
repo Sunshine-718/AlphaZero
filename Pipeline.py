@@ -76,7 +76,6 @@ class TrainPipeline:
         explained_var_old = np.mean(ex_old)
         explained_var_new = np.mean(ex_new)
         print(f'kl: {kl: .5f}\n'
-              f'lr_multiplier: {self.lr_multiplier}'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
         return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new
