@@ -12,7 +12,7 @@ config = {
     "kl_targ": 0.02,
     "check_freq": 10,
     "pure_mcts_n_playout": 1000,
-    "dirichlet_alpha": 0.3,   # depends on the size of action space
+    "dirichlet_alpha": 0.1,   # depends on the size of action space
     "init_elo": 1500,
 }
 
