@@ -72,7 +72,6 @@ class TrainPipeline:
             ex_new.append(self.explained_var(new_v, batch[2]))
             if np.mean(kl) > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
-        # adaptively adjust the learning rate
         kl = np.mean(kl)
         explained_var_old = np.mean(ex_old)
         explained_var_new = np.mean(ex_new)
