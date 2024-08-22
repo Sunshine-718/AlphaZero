@@ -70,7 +70,7 @@ class TrainPipeline:
             kl.append(kl_temp)
             ex_old.append(self.explained_var(old_v, batch[2]))
             ex_new.append(self.explained_var(new_v, batch[2]))
-            if np.mean(kl) > self.kl_targ * 4:   # early stopping if D_KL diverges badly
+            if kl[-1] > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
         kl = np.mean(kl)
         explained_var_old = np.mean(ex_old)
