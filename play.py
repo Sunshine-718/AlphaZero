@@ -46,7 +46,7 @@ if __name__ == '__main__':
         elif args.self_play and not (args.x or args.o):
             game.start_play(az_player, az_player, config['discount'], show=1)
         else:
-            raise AttributeError('Invalid option\n'
+            raise AttributeError('Invalid argument(s).\n'
                                  "Type 'python3 ./play.py -h' for help")
     except KeyboardInterrupt:
         print('\n\rquit')

@@ -6,12 +6,13 @@ import torch
 import numpy as np
 from elo import Elo
 from env import Env, Game
+from copy import deepcopy
+from config import network_config
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
-from config import network_config
 from player import MCTSPlayer, AlphaZeroPlayer
 from torch.utils.tensorboard import SummaryWriter
-from utils import inspect, instant_augment
+from utils import inspect, instant_augment, set_learning_rate
 
 
 torch.set_float32_matmul_precision('high')
@@ -33,11 +34,17 @@ class TrainPipeline:
         self.policy_value_net = PolicyValueNet(self.lr, self.discount, params, self.device)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
+        self.update_best_player()
         self.buffer.to(self.policy_value_net.device)
         self.elo = Elo(self.init_elo, 1500)
-        self.best_elo = self.init_elo
+    
+    def update_best_player(self):
+        self.best_net = deepcopy(self.policy_value_net)
+        self.best_player = AlphaZeroPlayer(self.best_net, c_puct=self.c_puct,
+                                         n_playout=self.n_playout)
 
     def collect_selfplay_data(self, n_games=1):
+        self.policy_value_net.eval()
         self.az_player.train()
         with torch.no_grad():
             for _ in range(n_games):
@@ -54,7 +61,6 @@ class TrainPipeline:
 
     def policy_update(self):
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
-        kl, ex_old, ex_new = [], [], []
         for _ in range(self.epochs):
             batch = self.buffer.sample(self.batch_size)
             batch = instant_augment(batch)
@@ -65,51 +71,59 @@ class TrainPipeline:
             v_loss.append(v_l)
             entropy.append(ent)
             grad_norm.append(g_n)
-            kl_temp = np.mean(np.sum(
-                old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-            kl.append(kl_temp)
-            ex_old.append(self.explained_var(old_v, batch[2]))
-            ex_new.append(self.explained_var(new_v, batch[2]))
-            if kl[-1] > self.kl_targ * 4:   # early stopping if D_KL diverges badly
+            kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
+            explained_var_old = self.explained_var(old_v, batch[2])
+            explained_var_new = self.explained_var(new_v, batch[2])
+            if kl > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
-        kl = np.mean(kl)
-        explained_var_old = np.mean(ex_old)
-        explained_var_new = np.mean(ex_new)
         print(f'kl: {kl: .5f}\n'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
         return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new
 
-    def evaluation(self, description, player1, player2, win_counter, win_key, lose_key, draw_key, n_games):
-        print(description)
-        for _ in range(n_games // 2):
-            winner = self.game.start_play(
-                player1=player1, player2=player2, show=0)
-            if winner != 0:
-                if winner == (1 if 'X' in win_key else -1):
-                    win_counter[win_key] += 1
-                else:
-                    win_counter[lose_key] += 1
-            else:
-                win_counter[draw_key] += 1
-        return win_counter
-
-    def policy_evaluate(self, n_games=2):
+    def update_elo(self):
+        print('Updating elo score...')
         self.policy_value_net.eval()
         current_az_player = AlphaZeroPlayer(self.policy_value_net,
                                             self.c_puct,
                                             self.n_playout)
         current_az_player.eval()
         mcts_player = MCTSPlayer(5, self.pure_mcts_n_playout)
-        win_counter = {'Xwin': 0, 'Xdraw': 0, 'Xlose': 0,
-                       'Owin': 0, 'Odraw': 0, 'Olose': 0}
-        win_counter = self.evaluation('Evaluating policy X...', current_az_player,
-                                      mcts_player, win_counter, 'Xwin', 'Xlose', 'Xdraw', n_games)
-        win_counter = self.evaluation('Evaluating policy O...', mcts_player,
-                                      current_az_player, win_counter, 'Owin', 'Olose', 'Odraw', n_games)
-        self.elo.update(1 if win_counter['Xwin']
-                        else 0.5 if win_counter['Xdraw'] else 0)
-        return self.elo.update(1 if win_counter['Owin'] else 0.5 if win_counter['Odraw'] else 0)
+        winner = self.game.start_play(player1=current_az_player, player2=mcts_player, discount=self.discount, show=0)
+        self.elo.update(1 if winner == 1 else 0.5 if winner == 0 else 0)
+        winner = self.game.start_play(player1=mcts_player, player2=current_az_player, discount=self.discount, show=0)
+        print('Complete.')
+        return self.elo.update(1 if winner == -1 else 0.5 if winner == 0 else 0)
+    
+    def select_best_player(self, n_games=10):
+        print('Evaluating best player...')
+        self.policy_value_net.eval()
+        self.best_net.eval()
+        current_az_player = AlphaZeroPlayer(self.policy_value_net,
+                                            self.c_puct,
+                                            self.n_playout)
+        current_best_player = AlphaZeroPlayer(self.best_net, self.c_puct, self.n_playout)
+        current_az_player.eval()
+        current_best_player.eval()
+        win_rate = 0
+        flag = False
+        for _ in range(n_games // 2):
+            winner = self.game.start_play(player1=current_az_player, player2=current_best_player, discount=self.discount, show=0)
+            if winner == 1:
+                win_rate += 1 / n_games
+            elif winner == 0:
+                win_rate += 0.5 / n_games
+        for _ in range(n_games // 2):
+            winner = self.game.start_play(player1=current_best_player, player2=current_az_player, discount=self.discount, show=0)
+            if winner == -1:
+                win_rate += 1 / n_games
+            elif winner == 0:
+                win_rate += 0.5 / n_games
+        if win_rate >= 0.7:
+            self.update_best_player()
+            flag = True
+        print('Complete.')
+        return flag, win_rate
     
     def __call__(self):
         self.run()
@@ -126,7 +140,6 @@ class TrainPipeline:
         print(f'\tRandom steps: {self.first_n_steps}')
         print(f'\tDiscount: {self.discount}')
         print(f'\tTemperature: {self.temp}')
-        print(f'\tInitial elo score: {self.init_elo}')
         print('=' * 50)
 
     def run(self):
@@ -140,6 +153,7 @@ class TrainPipeline:
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
         preparing = True
         i = 0
+        best_counter = 0
         while True:
             self.collect_selfplay_data(self.play_batch_size)
             p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), float('inf'), float('inf')
@@ -159,10 +173,10 @@ class TrainPipeline:
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
             writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
             writer.add_scalars('Metric/Explained variance', {'Old': ex_var_old, 'New': ex_var_new}, i)
-            if (i) % self.check_freq != 0:
+            if (i) % 10 != 0:
                 continue
             print(f'current self-play batch: {i + 1}')
-            r_a, r_b = self.policy_evaluate()
+            r_a, r_b = self.update_elo()
             p0, v0, p1, v1 = inspect(self.policy_value_net.net)
             writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': r_a,
                                               f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
@@ -176,8 +190,12 @@ class TrainPipeline:
             writer.add_scalars('Action probability/O',
                                {str(idx): i for idx, i in enumerate(p1)}, i)
             self.policy_value_net.save(current)
-            if r_a > self.best_elo:
+            if (i) % 50 != 0:
+                continue
+            flag, win_rate = self.select_best_player()
+            writer.add_scalar('Metric/win rate', win_rate, i)
+            if flag:
                 print('New best policy!!')
-                self.best_elo = r_a
-                writer.add_scalar('Metric/Highest elo', self.best_elo, i)
+                best_counter += 1
+                writer.add_scalar('Metric/Best policy', best_counter, i)
                 self.policy_value_net.save(best)

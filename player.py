@@ -52,7 +52,7 @@ class Human(Player):
 
 
 class MCTSPlayer(Player):
-    def __init__(self, c_puct=1, n_playout=2000, num_worker=1):
+    def __init__(self, c_puct=4, n_playout=2000, num_worker=1):
         super().__init__()
         if num_worker == 1:
             self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
@@ -74,7 +74,7 @@ class MCTSPlayer(Player):
 
 
 class AlphaZeroPlayer(Player):
-    def __init__(self, policy_value_fn, c_puct=5, n_playout=1000, is_selfplay=0):
+    def __init__(self, policy_value_fn, c_puct=4, n_playout=1000, is_selfplay=0):
         super().__init__()
         self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
         self.is_selfplay = is_selfplay

@@ -11,7 +11,7 @@ Run the command lines below in terminal.
 pip install -r requirements.txt
 ```
 Pytorch official website: [click here](https://pytorch.org)  
-If you prefer to run this code beyond cuda device, just simply run the code below to install the cpu version of Pytorch.
+If you prefer to run this code beyond cuda device, just simply run the code below to install the __CPU version__ of Pytorch.
 ``` shell
 pip install torch
 ```
@@ -30,7 +30,7 @@ Optional argument:
 `--self_play`: AlphaZero will play against itself if using this option.  
 `--model`: AlphaZero's parameter file path, default: [`./params/AlphaZero_current.pt`](./params/AlphaZero_current.pt).  
 ## How to train your own AlphaZero?
-Just open [`train.ipynb`](./train.ipynb) and run it __after backing up the latest parameter files__.  
+Open [`train.ipynb`](./train.ipynb) and run it __after backing up the latest parameter files__.  
 __*IMPORTANT!!!*__:  
 Remember to __back up__ the __latest__ parameter files, if the parameter files are corrupted or overwritten, it will take __several hours to 1 day__, even longer, to retrain the model from scratch, the training procedure is extremely slow!  
 ### How to monitor the training procedure?
