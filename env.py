@@ -94,7 +94,7 @@ class Game:
                     self.env, temp, dirichlet_alpha, discount)
             else:
                 action, probs = player.get_action(
-                    self.env, 0, dirichlet_alpha, discount)
+                    self.env, 1e-3, dirichlet_alpha, discount)
             steps += 1
             states.append(self.env.current_state())
             mcts_probs.append(probs)
@@ -110,8 +110,7 @@ class Game:
                     winner_z[np.array(current_players) == winner] = 1
                     winner_z[np.array(current_players) != winner] = -1
                     for idx, i in enumerate(winner_z):
-                        winner_z[idx] = i * \
-                            pow(discount, len(winner_z) - idx - 1)
+                        winner_z[idx] = i * pow(discount, len(winner_z) - idx - 1)
                 if show:
                     if winner != 0:
                         print(f"Game end. Wineer is Player: {[None, 'X', 'O'][int(winner)]}")
