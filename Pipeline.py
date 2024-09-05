@@ -7,12 +7,13 @@ import numpy as np
 from elo import Elo
 from env import Env, Game
 from copy import deepcopy
+from torchsummary import summary
 from config import network_config
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from player import MCTSPlayer, AlphaZeroPlayer
 from torch.utils.tensorboard import SummaryWriter
-from utils import inspect, instant_augment, set_learning_rate
+from utils import inspect, instant_augment
 
 
 torch.set_float32_matmul_precision('high')
@@ -74,8 +75,6 @@ class TrainPipeline:
             kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
             explained_var_old = self.explained_var(old_v, batch[2])
             explained_var_new = self.explained_var(new_v, batch[2])
-            if kl > self.kl_targ * 4:   # early stopping if D_KL diverges badly
-                break
         print(f'kl: {kl: .5f}\n'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
@@ -119,7 +118,7 @@ class TrainPipeline:
                 win_rate += 1 / n_games
             elif winner == 0:
                 win_rate += 0.5 / n_games
-        if win_rate >= 0.7:
+        if win_rate >= self.win_rate_threshold:
             self.update_best_player()
             flag = True
         print('Complete.')
@@ -144,6 +143,7 @@ class TrainPipeline:
 
     def run(self):
         self.show_hyperparams()
+        summary(self.policy_value_net.net, (3, 6, 7), device=self.policy_value_net.device)
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
         writer = SummaryWriter(filename_suffix=self.name)

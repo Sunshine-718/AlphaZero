@@ -8,11 +8,12 @@ config = {
     "batch_size": 128,
     "discount": 0.99,
     "play_batch_size": 1,
-    "epochs": 5,
+    "epochs": 2,
     "kl_targ": 0.02,
     "pure_mcts_n_playout": 1000,
     "dirichlet_alpha": 0.1,   # depends on the size of action space
     "init_elo": 1500,
+    "win_rate_threshold": 0.7,
 }
 
 network_config = {"in_dim": 3,

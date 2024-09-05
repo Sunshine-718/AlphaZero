@@ -3,3 +3,4 @@ numpy
 tqdm
 tensorboard
 torch-tb-profiler
+torchsummary

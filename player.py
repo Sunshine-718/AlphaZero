@@ -38,7 +38,7 @@ class NetworkPlayer(Player):
     def eval(self):
         self.net.eval()
 
-    def get_action(self, env, *, compute_winrate=False):
+    def get_action(self, env, discount, *, compute_winrate=False):
         action_probs, value = self.net(env)
         if compute_winrate:
             self.win_rate = (value + 1) / 2
