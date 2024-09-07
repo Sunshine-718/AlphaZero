@@ -11,7 +11,7 @@ from torchsummary import summary
 from config import network_config
 from Network import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
-from player import MCTSPlayer, AlphaZeroPlayer
+from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 from torch.utils.tensorboard import SummaryWriter
 from utils import inspect, instant_augment
 
@@ -98,22 +98,20 @@ class TrainPipeline:
         print('Evaluating best player...')
         self.policy_value_net.eval()
         self.best_net.eval()
-        current_az_player = AlphaZeroPlayer(self.policy_value_net,
-                                            self.c_puct,
-                                            self.n_playout)
-        current_best_player = AlphaZeroPlayer(self.best_net, self.c_puct, self.n_playout)
-        current_az_player.eval()
-        current_best_player.eval()
+        current_player = NetworkPlayer(self.policy_value_net, False)
+        best_player = NetworkPlayer(self.best_net, False)
+        current_player.eval()
+        best_player.eval()
         win_rate = 0
         flag = False
         for _ in range(n_games // 2):
-            winner = self.game.start_play(player1=current_az_player, player2=current_best_player, discount=self.discount, show=0)
+            winner = self.game.start_play(player1=current_player, player2=best_player, discount=self.discount, show=0)
             if winner == 1:
                 win_rate += 1 / n_games
             elif winner == 0:
                 win_rate += 0.5 / n_games
         for _ in range(n_games // 2):
-            winner = self.game.start_play(player1=current_best_player, player2=current_az_player, discount=self.discount, show=0)
+            winner = self.game.start_play(player1=best_player, player2=current_player, discount=self.discount, show=0)
             if winner == -1:
                 win_rate += 1 / n_games
             elif winner == 0:
@@ -189,10 +187,14 @@ class TrainPipeline:
                                {str(idx): i for idx, i in enumerate(p0)}, i)
             writer.add_scalars('Action probability/O',
                                {str(idx): i for idx, i in enumerate(p1)}, i)
+            writer.add_scalars('Action probability/X_cummulative', 
+                               {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, i)
+            writer.add_scalars('Action probability/O_cummulative',
+                               {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, i)
             self.policy_value_net.save(current)
             if (i) % 50 != 0:
                 continue
-            flag, win_rate = self.select_best_player()
+            flag, win_rate = self.select_best_player(self.num_eval)
             writer.add_scalar('Metric/win rate', win_rate, i)
             if flag:
                 print('New best policy!!')

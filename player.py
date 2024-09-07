@@ -28,9 +28,10 @@ class Player(ABC):
 
 
 class NetworkPlayer(Player):
-    def __init__(self, net):
+    def __init__(self, net, deterministic=True):
         super().__init__()
         self.net = net
+        self.deterministic = deterministic
 
     def train(self):
         self.net.train()
@@ -42,7 +43,11 @@ class NetworkPlayer(Player):
         action_probs, value = self.net(env)
         if compute_winrate:
             self.win_rate = (value + 1) / 2
-        return max(action_probs, key=lambda x: x[1])[0], None
+        if self.deterministic:
+            return max(action_probs, key=lambda x: x[1])[0], None
+        else:
+            actions, probs = list(zip(*action_probs))
+            return np.random.choice(actions, p=softmax(probs)), None
 
 
 class Human(Player):
@@ -92,10 +97,12 @@ class AlphaZeroPlayer(Player):
         valid = env.valid_move()
         action_probs = np.zeros((7,), dtype=np.float32)
         if len(valid) > 0:
-            actions, visits = self.mcts.get_action_visits(env, dirichlet_alpha, discount)
+            actions, visits = self.mcts.get_action_visits(
+                env, dirichlet_alpha, discount)
             if temp == 0:
                 probs = np.zeros((len(visits),), dtype=np.float32)
-                probs[np.where(np.array(visits) == max(visits))] = 1 / list(visits).count(max(visits))
+                probs[np.where(np.array(visits) == max(visits))
+                      ] = 1 / list(visits).count(max(visits))
             else:
                 probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
             action = np.random.choice(actions, p=probs)

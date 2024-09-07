@@ -43,7 +43,7 @@ class TreeNode:
                     self.children[action] = TreeNode(self, prior, noise[idx])
 
     def select(self, c_puct):
-        return max(self.children.items(), key=lambda action_node: action_node[1].ucb1(c_puct))
+        return max(self.children.items(), key=lambda action_node: action_node[1].PUCT(c_puct))
 
     def update(self, leaf_value, discount):
         if self.parent:
@@ -51,7 +51,7 @@ class TreeNode:
         self.n_visits += 1
         self.Q += (leaf_value - self.Q) / self.n_visits # Q = ((n-1)*Q_old + leaf_value)/n
 
-    def ucb1(self, c_puct):
+    def PUCT(self, c_puct):
         if self.parent is not None and self.parent.is_root() and not self.deterministic:
             prior = 0.75 * self.prior + 0.25 * self.noise
         else:
