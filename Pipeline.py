@@ -4,7 +4,7 @@
 # Created on: 14/Jul/2024  21:00
 import torch
 import numpy as np
-from elo import Elo
+from utils import Elo
 from game import Game
 from copy import deepcopy
 from torchsummary import summary
