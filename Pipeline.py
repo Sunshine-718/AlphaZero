@@ -5,39 +5,46 @@
 import torch
 import numpy as np
 from elo import Elo
-from env import Env, Game
+from game import Game
 from copy import deepcopy
 from torchsummary import summary
-from config import network_config
-from Network import PolicyValueNet
+from environments import load
+from policy_value_net import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 from torch.utils.tensorboard import SummaryWriter
-from utils import inspect, instant_augment
 
 
 torch.set_float32_matmul_precision('high')
 
 
 class TrainPipeline:
-    def __init__(self, name='AlphaZero'):
-        self.env = Env()
+    def __init__(self, env_name, name='AlphaZero'):
+        self.module = load(env_name)
+        self.env = self.module.Env()
         self.game = Game(self.env)
-        self.name = name
+        self.name = f'{name}_{env_name}'
         self.params = './params'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    def init(self, config):
-        for key, value in config.items():
+        for key, value in self.module.training_config.items():
             setattr(self, key, value)
         params = f'{self.params}/{self.name}_current.pt'
-        self.buffer = ReplayBuffer(network_config['in_dim'], self.buffer_size, network_config['out_dim'])
-        self.policy_value_net = PolicyValueNet(self.lr, self.discount, params, self.device)
+        self.buffer = ReplayBuffer(self.module.network_config['in_dim'], 
+                                   self.buffer_size, 
+                                   self.module.network_config['out_dim'], 
+                                   self.module.env_config['row'], 
+                                   self.module.env_config['col'])
+        self.net = self.module.Network(self.lr, 
+                                       self.module.network_config['in_dim'],
+                                       self.module.network_config['h_dim'],
+                                       self.module.network_config['out_dim'],
+                                       self.device)
+        self.policy_value_net = PolicyValueNet(self.net, self.discount, params)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.update_best_player()
         self.buffer.to(self.policy_value_net.device)
-        self.elo = Elo(self.init_elo, 1500)
+        self.elo = Elo(self.init_elo, 1500)       
     
     def update_best_player(self):
         self.best_net = deepcopy(self.policy_value_net)
@@ -64,7 +71,7 @@ class TrainPipeline:
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
         for _ in range(self.epochs):
             batch = self.buffer.sample(self.batch_size)
-            batch = instant_augment(batch)
+            batch = self.module.instant_augment(batch)
             old_probs, old_v = self.policy_value_net.policy_value(batch[0])
             p_l, v_l, ent, g_n = self.policy_value_net.train_step(batch)
             new_probs, new_v = self.policy_value_net.policy_value(batch[0])
@@ -141,11 +148,11 @@ class TrainPipeline:
 
     def run(self):
         self.show_hyperparams()
-        summary(self.policy_value_net.net, (3, 6, 7), device=self.policy_value_net.device)
+        summary(self.net, (3, 6, 7), device=self.device)
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
         writer = SummaryWriter(filename_suffix=self.name)
-        fake_input = torch.randn(1, 3, 6, 7).to(self.policy_value_net.net.device)
+        fake_input = torch.randn(1, 3, 6, 7).to(self.device)
         writer.add_graph(self.policy_value_net.net, fake_input)
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
@@ -175,7 +182,7 @@ class TrainPipeline:
                 continue
             print(f'current self-play batch: {i + 1}')
             r_a, r_b = self.update_elo()
-            p0, v0, p1, v1 = inspect(self.policy_value_net.net)
+            p0, v0, p1, v1 = self.module.inspect(self.policy_value_net.net)
             writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': r_a,
                                               f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
             writer.add_scalars(

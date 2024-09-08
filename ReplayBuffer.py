@@ -8,9 +8,9 @@ from torch.utils.data import TensorDataset, DataLoader
 
 
 class ReplayBuffer:
-    def __init__(self, state_dim, capacity, action_dim):
+    def __init__(self, state_dim, capacity, action_dim, row, col):
         self.state = torch.full(
-            (capacity, state_dim, 6, 7), torch.nan, dtype=torch.float32)
+            (capacity, state_dim, row, col), torch.nan, dtype=torch.float32)
         self.prob = torch.full(
             (capacity, action_dim), torch.nan, dtype=torch.float32)
         self.value = torch.full((capacity, 1), torch.nan, dtype=torch.float32)

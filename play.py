@@ -4,10 +4,10 @@
 # Created on: 20/Jul/2024  22:31
 import torch
 import argparse
-from config import config
-from env import Env, Game
-from Network import PolicyValueNet
-from player import Human, MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
+from environments import load
+from game import Game
+from policy_value_net import PolicyValueNet
+from player import Human, AlphaZeroPlayer, NetworkPlayer
 
 
 parser = argparse.ArgumentParser(
@@ -19,21 +19,30 @@ parser.add_argument('-n', type=int, default=500,
 parser.add_argument('--self_play', action='store_true',
                     help='AlphaZero play against itself')
 parser.add_argument('--model', type=str,
-                    default='./params/AlphaZero_current.pt', help='Model file path')
+                    default='current', help='Model type')
+parser.add_argument('--env', type=str, help='env name')
+parser.add_argument('--name', type=str, default='AlphaZero', help='Model name')
 
 args = parser.parse_args()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if __name__ == '__main__':
+    module = load(args.env)
+    config = module.config
     try:
-        env = Env()
+        env = module.Env()
         game = Game(env)
-        policy_value_net = PolicyValueNet(0, config['discount'], args.model, device)
+        net = module.Network(0,
+                             module.network_config['in_dim'],
+                             module.network_config['h_dim'],
+                             module.network_config['out_dim'],
+                             device)
+        policy_value_net = PolicyValueNet(net, config['discount'], f'./params/{args.name}_{args.env}_{args.model}.pt')
         if args.n == 0:
             az_player = NetworkPlayer(policy_value_net)
         else:
-            az_player = AlphaZeroPlayer(policy_value_net.policy_value_fn, c_puct=config['c_puct'],
+            az_player = AlphaZeroPlayer(policy_value_net, c_puct=config['c_puct'],
                                         n_playout=args.n, is_selfplay=0)
         az_player.eval()
         human = Human()

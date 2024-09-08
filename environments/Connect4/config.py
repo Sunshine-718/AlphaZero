@@ -1,4 +1,4 @@
-config = {
+training_config = {
     "lr": 1e-3,
     "temp": 1.0,
     "n_playout": 100,
@@ -16,6 +16,9 @@ config = {
     "win_rate_threshold": 0.6,
 }
 
+env_config = {'row': 6, 
+              'col': 7}
+
 network_config = {"in_dim": 3,
                   "h_dim": 128,
-                  "out_dim": 7}
+                  "out_dim": env_config['col']}
