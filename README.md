@@ -49,10 +49,10 @@ pip install torch
 ## How to play against AlphaZero?
 Type one of the command lines below in terminal:  
 ``` shell
-python3 play.py -x    # play as X
+python3 play.py --env Connect4 -x    # play as X
 ```
 ``` shell
-python3 play.py -o    # play as O
+python3 play.py --env Connect4 -o    # play as O
 ```
 and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column.  
 Mandatory argument:  
