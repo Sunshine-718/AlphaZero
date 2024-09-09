@@ -55,11 +55,11 @@ python3 play.py -x    # play as X
 python3 play.py -o    # play as O
 ```
 and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column. 
-Mandatory argument:
+Mandatory argument:  
 `--env`: Environment name, such as: `Connect4`  
 Optional argument:  
-`-x`: Play as X
-`-o`: Play as O
+`-x`: Play as X  
+`-o`: Play as O  
 `-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: `500`.  
 `--self_play`: AlphaZero will play against itself if using this option.  
 `--model`: current model or best model, default: `current`.  
