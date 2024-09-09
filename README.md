@@ -54,7 +54,7 @@ python3 play.py -x    # play as X
 ``` shell
 python3 play.py -o    # play as O
 ```
-and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column. 
+and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column.  
 Mandatory argument:  
 `--env`: Environment name, such as: `Connect4`  
 Optional argument:  
