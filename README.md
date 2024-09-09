@@ -1,6 +1,37 @@
-# AlphaZero-Connect4  
+# AlphaZero 
 ## Keywords
 `AlphaGo Zero` `AlphaZero` `Monte Carlo Tree Search` `Reinforcement Learning (RL)` `Model-based RL` `Tree Search` `Heuristic Search` `Zero-sum Game`  
+## Structure
+```
+AlphaZero/
+|-- environments/
+|   |-- Connect4
+|   |   |-- __init__.py
+|   |   |-- config.py
+|   |   |-- env.py
+|   |   |-- Network.py
+|   |   |-- utils.py
+|   |-- __init__.py
+|   |-- Environment.py
+|   |-- NetworkBase.py
+|-- params/
+|-- runs/
+|-- .gitignore
+|-- game.py
+|-- LICENSE
+|-- MCTS.py
+|-- Pipeline.py
+|-- play.py
+|-- policy_value_net.py
+|-- README.md
+|-- ReplayBuffer.py
+|-- requirements.txt
+|-- reset.bat
+|-- reset.sh
+|-- train.ipynb
+|-- TreeRep.py
+|-- utils.py
+```  
 ## Environment
 [`python 3.12`](https://www.python.org)  
 [`torch 2.3.0`](https://pytorch.org)  
@@ -14,9 +45,8 @@ Pytorch official website: [click here](https://pytorch.org)
 If you prefer to run this code beyond cuda device, just simply run the code below to install the __CPU version__ of Pytorch.
 ``` shell
 pip install torch
-```
-
-## How to play Connect4 against AlphaZero?
+```  
+## How to play against AlphaZero?
 Type one of the command lines below in terminal:  
 ``` shell
 python3 play.py -x    # play as X
@@ -24,11 +54,16 @@ python3 play.py -x    # play as X
 ``` shell
 python3 play.py -o    # play as O
 ```
-and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column.  
+and input 0-6 for each column, i.e., 0 for the 1st column, 1 for the 2nd column. 
+Mandatory argument:
+`--env`: Environment name, such as: `Connect4`  
 Optional argument:  
-`-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: 500.  
+`-x`: Play as X
+`-o`: Play as O
+`-n`: Number of simulation before AlphaZero make an action, set higher for more powerful policy (theoretically), default: `500`.  
 `--self_play`: AlphaZero will play against itself if using this option.  
-`--model`: AlphaZero's parameter file path, default: [`./params/AlphaZero_current.pt`](./params/AlphaZero_current.pt).  
+`--model`: current model or best model, default: `current`.  
+`--name`: model name, default: `AlphaZero`.  
 ## How to train your own AlphaZero?
 Open [`train.ipynb`](./train.ipynb) and run it __after backing up the latest parameter files__.  
 __*IMPORTANT!!!*__:  

@@ -2,7 +2,7 @@ training_config = {
     "lr": 1e-3,
     "temp": 1.0,
     "n_playout": 100,
-    "first_n_steps": 10,
+    "first_n_steps": 12,
     "c_puct": 1.5,
     "buffer_size": 50000,
     "batch_size": 128,
