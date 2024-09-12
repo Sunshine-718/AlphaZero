@@ -3,8 +3,8 @@
 # Written by: Sunshine
 # Created on: 25/Jun/2024  13:03
 import numpy as np
-from environments.Environment import Environment
-from environments.Connect4.utils import check_winner, valid_move, place, check_draw, step, board_to_state
+from ..Environment import Environment
+from .utils import check_winner, valid_move, place, check_draw, step, board_to_state
 
 
 class Env(Environment):

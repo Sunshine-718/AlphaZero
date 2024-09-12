@@ -4,7 +4,7 @@
 # Created on: 14/Jul/2024  20:41
 import torch.nn as nn
 from torch.optim import NAdam
-from environments.NetworkBase import Base
+from ..NetworkBase import Base
 
 
 class Network(Base):
