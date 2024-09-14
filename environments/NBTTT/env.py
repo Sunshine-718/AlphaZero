@@ -61,20 +61,3 @@ class Env(Environment):
 
     def show(self):
         print_board(self.boards)
-
-
-if __name__ == '__main__':
-    env = Env()
-    while True:
-        env.show()
-        print(env.curr)
-        print(env.valid_move())
-        print(env.check_full())
-        print(env.current_state())
-        action = int(input('Input an action from 1-9:'))
-        env.step(action)
-        if env.done():
-            env.show()
-            print(env.winPlayer())
-            break
-    pass
