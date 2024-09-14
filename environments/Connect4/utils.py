@@ -21,7 +21,7 @@ def board_to_state(board, turn):
 
 
 @jit(nopython=True)
-def check_draw(board):
+def check_full(board):
     return len(np.where(board == 0)[0]) == 0
 
 
@@ -114,20 +114,6 @@ def print_row(action, probX, probO, max_X, max_O):
     print(f'action: {action}, prob_X: {probX * 100: 02.2f}%', end='\t')
     print('⭐️ ' if probO == max_O else '   ', end='')
     print(f'action: {action}, prob_O: {probO * 100: 02.2f}%')
-
-
-def step(board, action, turn):
-    if place(board, action, turn):
-        winner = check_winner(board)
-        if check_draw(board):
-            return board, 0, True, True
-        elif winner != 0:
-            if winner == turn:
-                return board, True
-            return board, -1, True, True
-        else:
-            return board, 0, False, True
-    return board, 0, False, False
 
 
 def symmetric_state(state):

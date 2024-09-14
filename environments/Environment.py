@@ -43,9 +43,9 @@ class Environment(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def check_draw(self):
+    def check_full(self):
         """
-        Function to check whether the game is draw.
+        Function to check whether the game board is full.
         """
         raise NotImplementedError
 

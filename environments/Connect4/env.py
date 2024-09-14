@@ -4,7 +4,7 @@
 # Created on: 25/Jun/2024  13:03
 import numpy as np
 from ..Environment import Environment
-from .utils import check_winner, valid_move, place, check_draw, step, board_to_state
+from .utils import check_winner, valid_move, place, check_full, board_to_state
 
 
 class Env(Environment):
@@ -18,7 +18,7 @@ class Env(Environment):
         return self.board
 
     def done(self):
-        return self.check_draw() or self.winPlayer() != 0
+        return self.check_full() or self.winPlayer() != 0
 
     def valid_move(self):
         return valid_move(self.board)
@@ -30,8 +30,8 @@ class Env(Environment):
     def place(self, action):
         return place(self.board, action, self.turn)
 
-    def check_draw(self):
-        return check_draw(self.board)
+    def check_full(self):
+        return check_full(self.board)
 
     def winPlayer(self):
         return check_winner(self.board)
@@ -40,10 +40,8 @@ class Env(Environment):
         return board_to_state(self.board, self.turn)
 
     def step(self, action):
-        next_step = step(self.board, action, self.turn)
-        if next_step[-1]:
+        if self.place(action):
             self.switch_turn()
-        return next_step
 
     def show(self):
         board = self.board.astype(int)
