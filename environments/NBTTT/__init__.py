@@ -1,8 +1,6 @@
 import os
 import platform
 from .config import training_config, network_config, env_config
-from .env import Env
-from .Network import Network
 
 system = platform.system()
 root = './environments/NBTTT'
@@ -32,3 +30,5 @@ if f'NBTTTAgent.{mapping[system]}' not in os.listdir(root):
     print("Compile complete!")
 
 from .utils import instant_augment, inspect
+from .env import Env
+from .Network import Network
