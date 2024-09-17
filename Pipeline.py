@@ -189,8 +189,8 @@ class TrainPipeline:
                 continue
             print(f'current self-play batch: {i + 1}')
             r_a, r_b = self.update_elo()
-            writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': r_a,
-                                              f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
+            writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': r_a,
+                                              f'MCTS_{self.pure_mcts_n_playout}': r_b}, i)
             writer.add_scalars(
                 'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
             writer.add_scalar('Metric/Entropy', entropy, i)
