@@ -161,8 +161,8 @@ class TrainPipeline:
         writer = SummaryWriter(filename_suffix=self.name)
         fake_input = torch.randn(1, *fake_input_shape).to(self.device)
         writer.add_graph(self.policy_value_net.net, fake_input)
-        writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
-                                          f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
+        writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': self.init_elo,
+                                          f'MCTS_{self.pure_mcts_n_playout}': 1500}, 0)
         preparing = True
         i = 0
         best_counter = 0
