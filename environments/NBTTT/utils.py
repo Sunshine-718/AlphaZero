@@ -281,7 +281,9 @@ def rot90(state, prob):
     mapping = {6: 0, 8: 6, 2: 8, 0: 2,
                1: 5, 3: 1, 7: 3, 5: 7}
     state_copy = swap_channel(state, mapping)
-    prob_copy = swap_channel(prob, mapping)
+    prob_copy = deepcopy(prob)
+    for key, value in mapping.items():
+        prob_copy[:, key] = prob[:, value]
     state_copy[:, :18] = torch.rot90(state_copy[:, :18], dims=(2, 3))
     return state_copy, prob_copy
 
@@ -290,7 +292,9 @@ def fliplr(state, prob):
     mapping = {0: 2, 2: 0, 3: 5,
                5: 3, 6: 8, 8: 6}
     state_copy = swap_channel(state, mapping)
-    prob_copy = swap_channel(prob, mapping)
+    prob_copy = deepcopy(prob)
+    for key, value in mapping.items():
+        prob_copy[:, key] = prob[:, value]
     for idx, i in enumerate(state_copy):
         for idx_j, j in enumerate(i):
             state_copy[idx, idx_j] = torch.fliplr(j)
