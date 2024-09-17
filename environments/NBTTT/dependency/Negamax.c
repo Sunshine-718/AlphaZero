@@ -32,7 +32,7 @@ double negamax(int boards[10][10], int actions[81], int m, int curr, int depth, 
                double beta, int MAX) {
     double value_eval = -10000;
     if (depth == 0 || is_full(boards, curr) ||
-        player_win(boards) != -1) { // depth = 0 of current board is full or sombody win
+        player_win(boards) != -1) { // depth = 0 or current board is full or sombody win
         return evalBoard(boards, 2, player) * (pow(0.99, m));
     }
     int valid[9] = {0};
@@ -75,7 +75,7 @@ int alphabeta(int boards[100], int actions[81], int m, int curr, int depth, int 
             mat[i][j] = boards[i * 10 + j];
         }
     }
-    if (is_full(mat, curr) ||player_win(mat) != -1) {
+    if (is_full(mat, curr) || player_win(mat) != -1) {
         printf("Game is over!\n");
         return -1;
     }

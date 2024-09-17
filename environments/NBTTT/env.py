@@ -12,8 +12,8 @@ class Env(Environment):
         super().__init__()
         self.boards = np.array([2 for _ in range(100)]).reshape(10, 10)
         self.turn = 1
-        self.curr = np.random.randint(1, 9) if init_board is None else init_board
-        self.action = np.random.randint(1, 9) if init_action is None else init_action
+        self.curr = np.random.randint(9) if init_board is None else init_board
+        self.action = np.random.randint(9) if init_action is None else init_action
         _init = self.curr
         self.step(self.action)
         _valid = self.valid_move()
@@ -37,11 +37,11 @@ class Env(Environment):
         return self.turn
 
     def place(self, curr, action):
-        if self.boards[curr, action] == 2:
+        if self.boards[curr + 1, action + 1] == 2:
             if self.turn == 1:
-                self.boards[curr, action] = 0
+                self.boards[curr + 1, action + 1] = 0
             else:
-                self.boards[curr, action] = 1
+                self.boards[curr + 1, action + 1] = 1
             self.curr = action
             return True
         return False

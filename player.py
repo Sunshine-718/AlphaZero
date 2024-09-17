@@ -83,6 +83,7 @@ class AlphaZeroPlayer(Player):
         super().__init__()
         self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
         self.is_selfplay = is_selfplay
+        self.n_actions = policy_value_fn.n_actions
 
     def train(self):
         self.mcts.train()
@@ -95,7 +96,7 @@ class AlphaZeroPlayer(Player):
 
     def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=1, *, compute_winrate=False):
         valid = env.valid_move()
-        action_probs = np.zeros((7,), dtype=np.float32)
+        action_probs = np.zeros((self.n_actions,), dtype=np.float32)
         if len(valid) > 0:
             actions, visits = self.mcts.get_action_visits(
                 env, dirichlet_alpha, discount)

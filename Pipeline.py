@@ -20,6 +20,10 @@ torch.set_float32_matmul_precision('high')
 
 class TrainPipeline:
     def __init__(self, env_name, name='AlphaZero'):
+        collection = ('Connect4', 'NBTTT')
+        if env_name not in collection:
+            raise ValueError(f'Environment does not exist, available env: {collection}')
+        self.env_name = env_name
         self.module = load(env_name)
         self.env = self.module.Env()
         self.game = Game(self.env)
@@ -148,11 +152,14 @@ class TrainPipeline:
 
     def run(self):
         self.show_hyperparams()
-        summary(self.net, (3, 6, 7), device=self.device)
+        fake_input_shape = (self.module.network_config['in_dim'], 
+                           self.module.env_config['row'], 
+                           self.module.env_config['col'])
+        summary(self.net, fake_input_shape, device=self.device)
         current = f'{self.params}/{self.name}_current.pt'
         best = f'{self.params}/{self.name}_best.pt'
         writer = SummaryWriter(filename_suffix=self.name)
-        fake_input = torch.randn(1, 3, 6, 7).to(self.device)
+        fake_input = torch.randn(1, *fake_input_shape).to(self.device)
         writer.add_graph(self.policy_value_net.net, fake_input)
         writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': self.init_elo,
                                           f'MCTS: {self.pure_mcts_n_playout}': 1500}, 0)
@@ -182,22 +189,23 @@ class TrainPipeline:
                 continue
             print(f'current self-play batch: {i + 1}')
             r_a, r_b = self.update_elo()
-            p0, v0, p1, v1 = self.module.inspect(self.policy_value_net.net)
             writer.add_scalars('Metric/Elo', {f'AlphaZero: {self.n_playout}': r_a,
                                               f'MCTS: {self.pure_mcts_n_playout}': r_b}, i)
             writer.add_scalars(
                 'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
             writer.add_scalar('Metric/Entropy', entropy, i)
             writer.add_scalar('Metric/Episode length', self.episode_len, i)
-            writer.add_scalars('Metric/Initial Value', {'X': v0, 'O': v1}, i)
-            writer.add_scalars('Action probability/X',
-                               {str(idx): i for idx, i in enumerate(p0)}, i)
-            writer.add_scalars('Action probability/O',
-                               {str(idx): i for idx, i in enumerate(p1)}, i)
-            writer.add_scalars('Action probability/X_cummulative', 
-                               {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, i)
-            writer.add_scalars('Action probability/O_cummulative',
-                               {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, i)
+            if self.env_name == 'Connect4':
+                p0, v0, p1, v1 = self.module.inspect(self.policy_value_net.net)
+                writer.add_scalars('Metric/Initial Value', {'X': v0, 'O': v1}, i)
+                writer.add_scalars('Action probability/X',
+                                {str(idx): i for idx, i in enumerate(p0)}, i)
+                writer.add_scalars('Action probability/O',
+                                {str(idx): i for idx, i in enumerate(p1)}, i)
+                writer.add_scalars('Action probability/X_cummulative', 
+                                {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, i)
+                writer.add_scalars('Action probability/O_cummulative',
+                                {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, i)
             self.policy_value_net.save(current)
             if (i) % 50 != 0:
                 continue

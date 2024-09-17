@@ -1,37 +1,7 @@
 # AlphaZero 
 ## Keywords
 `AlphaGo Zero` `AlphaZero` `Monte Carlo Tree Search` `Reinforcement Learning (RL)` `Model-based RL` `Tree Search` `Heuristic Search` `Zero-sum Game`  
-## Structure
-```
-AlphaZero/
-|-- environments/
-|   |-- Connect4
-|   |   |-- __init__.py
-|   |   |-- config.py
-|   |   |-- env.py
-|   |   |-- Network.py
-|   |   |-- utils.py
-|   |-- __init__.py
-|   |-- Environment.py
-|   |-- NetworkBase.py
-|-- params/
-|-- runs/
-|-- .gitignore
-|-- game.py
-|-- LICENSE
-|-- MCTS.py
-|-- Pipeline.py
-|-- play.py
-|-- policy_value_net.py
-|-- README.md
-|-- ReplayBuffer.py
-|-- requirements.txt
-|-- reset.bat
-|-- reset.sh
-|-- train.ipynb
-|-- TreeRep.py
-|-- utils.py
-```  
+
 ## Environment
 [`python 3.12`](https://www.python.org)  
 [`torch 2.3.0`](https://pytorch.org)  
@@ -77,10 +47,7 @@ After running this command, open the browser and type [```http://localhost:6006/
 ## References
 [Silver, D., Schrittwieser, J., Simonyan, K. et al. Mastering the game of Go without human knowledge. Nature 550, 354–359 (2017).](https://doi.org/10.1038/nature24270)  
 
-[David Silver et al. ,A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play.](https://doi.org/10.1126/science.aar6404)  
-
-[Connect Four - Wikipedia](https://en.wikipedia.org/wiki/Connect_Four)  
-
+[David Silver et al. ,A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play.](https://doi.org/10.1126/science.aar6404)   
 
 ## Future works
 1. Implement MCTS in parallel. 

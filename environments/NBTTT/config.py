@@ -19,6 +19,6 @@ training_config = {
 env_config = {'row': 3, 
               'col': 3}
 
-network_config = {"in_dim": 3,
+network_config = {"in_dim": 28,
                   "h_dim": 128,
                   "out_dim": 9}

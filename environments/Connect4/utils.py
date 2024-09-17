@@ -4,11 +4,11 @@
 # Created on: 09/Sep/2024  05:58
 import torch
 import numpy as np
-from numba import jit
+from numba import njit
 from copy import deepcopy
 
 
-@jit(nopython=True)
+@njit
 def board_to_state(board, turn):
     temp = np.zeros((1, 3, board.shape[0], board.shape[1]), dtype=np.float32)
     temp[:, 0] = board == 1
@@ -20,12 +20,12 @@ def board_to_state(board, turn):
     return temp
 
 
-@jit(nopython=True)
+@njit
 def check_full(board):
     return len(np.where(board == 0)[0]) == 0
 
 
-@jit(nopython=True)
+@njit
 def check_winner(board):
     # Dimensions of the board
     rows, cols = board.shape
@@ -100,7 +100,7 @@ def instant_augment(batch):
     return state, prob, value, next_state
 
 
-@jit(nopython=True)
+@njit
 def place(board, action, turn):
     if action in valid_move(board):
         row_index = max(np.where(board[:, action] == 0)[0])
@@ -123,6 +123,6 @@ def symmetric_state(state):
     return state
 
 
-@jit(nopython=True)
+@njit
 def valid_move(board):
     return [i for i in range(board.shape[1]) if 0 in board[:, i]]

@@ -15,6 +15,7 @@ class PolicyValueNet:
         self.opt = self.net.opt
         self.discount = discount
         self.device = self.net.device
+        self.n_actions = net.n_actions
         if params:
             self.net.load(params)
 

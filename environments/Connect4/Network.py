@@ -43,6 +43,7 @@ class Network(Base):
                                         nn.Linear(h_dim * 4, 1),
                                         nn.Tanh())
         self.device = device
+        self.n_actions = out_dim
         self.opt = NAdam(self.parameters(), lr=lr, weight_decay=1e-4, decoupled_weight_decay=True)
         self.weight_init()
         self.to(self.device)

@@ -3,9 +3,17 @@
 from ctypes import cdll, c_char_p, c_int, POINTER
 import numpy as np
 import time
-from numba import jit
+from numba import njit
+from copy import deepcopy
+import torch
+import platform
 
-lib = cdll.LoadLibrary("./environments/NBTTT/NBTTTAgent.dylib")
+system = platform.system()
+mapping = {'Windows': 'dll',
+           'Darwin': 'dylib',
+           'Linux': 'so'}
+
+lib = cdll.LoadLibrary(f"./environments/NBTTT/NBTTTAgent.{mapping[system]}")
 
 
 def Timer(precision=2):
@@ -40,6 +48,7 @@ def print_board(board):
     print_board_row(board, 7, 8, 9, 1, 2, 3)
     print_board_row(board, 7, 8, 9, 4, 5, 6)
     print_board_row(board, 7, 8, 9, 7, 8, 9)
+    print()
 
 
 class ndarray:
@@ -124,7 +133,7 @@ def alphabeta(boards, actions, m, curr, depth, branch, player):
     return lib.alphabeta(boards.array, actions.array, m, curr, depth, branch, player)
 
 
-@jit(nopython=True)
+@njit
 def count_pieces(board) -> int:
     """
     Function to count total pieces in board
@@ -166,7 +175,7 @@ def dynamic_params(boards: np.ndarray, curr: int, depth: int, branch: int) -> (i
     return depth, branch
 
 
-@jit(nopython=True)
+@njit
 def check_winner_single_board(board: np.ndarray) -> int:
     """
     Function to check winner in one sub-board.
@@ -192,7 +201,7 @@ def check_winner_single_board(board: np.ndarray) -> int:
     return 0
 
 
-@jit(nopython=True)
+@njit
 def check_draw(boards: np.ndarray, curr: int) -> bool:
     """
     Function to check whether the game is draw.
@@ -203,7 +212,7 @@ def check_draw(boards: np.ndarray, curr: int) -> bool:
     return len(np.where(boards[curr, 1:] != 2)[0]) == 9
 
 
-@jit(nopython=True)
+@njit
 def get_board(boards: np.ndarray, index: int, view: int) -> np.ndarray:
     """
     Function to get a sub-board from nine board.
@@ -226,7 +235,7 @@ def get_board(boards: np.ndarray, index: int, view: int) -> np.ndarray:
         raise IndexError(f"Index {index} out of range.")
 
 
-@jit(nopython=True)
+@njit
 def winPlayer(boards):
     for i in range(1, 10):
         board = get_board(boards, i, 0)
@@ -236,7 +245,7 @@ def winPlayer(boards):
     return 0
 
 
-@jit(nopython=True)
+@njit
 def valid_move(boards: np.ndarray, curr: int) -> list:
     """
     Function to check the valid action in given board.
@@ -244,7 +253,7 @@ def valid_move(boards: np.ndarray, curr: int) -> list:
     :param curr: index of current board.
     :return: list of valid action.
     """
-    return list(np.where(boards[curr] == 2)[0][1:])
+    return list(np.where(boards[curr, 1:] == 2)[0])
 
 def board_to_state(curr, boards, turn):
     boards = boards[1:, 1:].copy().reshape(1, 9, 3, 3)
@@ -252,8 +261,70 @@ def board_to_state(curr, boards, turn):
     x_pieces[boards == 0] = 1
     o_pieces = np.zeros_like(boards, dtype=np.float32)
     o_pieces[boards == 1] = 1
-    curr_dim = [np.ones((1, 1, 3, 3), dtype=np.float32) if i + 1 ==
+    curr_dim = [np.ones((1, 1, 3, 3), dtype=np.float32) if i ==
             curr else np.zeros((1, 1, 3, 3), dtype=np.float32) for i in range(9)]
     curr_dim = np.concatenate(curr_dim, axis=1)
     turn_dim = np.zeros((1, 1, 3, 3), dtype=np.float32) + turn
     return np.concatenate([x_pieces, o_pieces, curr_dim, turn_dim], axis=1)
+
+def swap_channel(a, mapping):
+    a_copy = deepcopy(a)
+    for key, value in mapping.items():
+        a_copy[:, key] = a[:, value]
+        a_copy[:, key + 9] = a[:, value + 9]
+        a_copy[:, key + 18] = a[:, value + 18]
+    return a_copy
+
+def rot90(state, prob):
+    # 0 -> 6, 6 -> 8, 8 -> 2, 2 -> 0
+    # 5 -> 1, 1 -> 3, 3 -> 7, 7 -> 5
+    mapping = {6: 0, 8: 6, 2: 8, 0: 2,
+               1: 5, 3: 1, 7: 3, 5: 7}
+    state_copy = swap_channel(state, mapping)
+    prob_copy = swap_channel(prob, mapping)
+    state_copy[:, :18] = torch.rot90(state_copy[:, :18], dims=(2, 3))
+    return state_copy, prob_copy
+
+def fliplr(state, prob):
+    # 0 <-> 2, 3 <-> 5, 6 <-> 8
+    mapping = {0: 2, 2: 0, 3: 5,
+               5: 3, 6: 8, 8: 6}
+    state_copy = swap_channel(state, mapping)
+    prob_copy = swap_channel(prob, mapping)
+    for idx, i in enumerate(state_copy):
+        for idx_j, j in enumerate(i):
+            state_copy[idx, idx_j] = torch.fliplr(j)
+    return state_copy, prob_copy
+
+def check(state):
+    temp = torch.zeros((1, 9, 3, 3)) + 2
+    temp[state[:, :9] == 1] = 0
+    temp[state[:, 9:18] == 1] = 1
+    temp = temp.reshape(9, 9)
+    boards = torch.zeros((10, 10)) + 2
+    boards[1:, 1:] = temp
+    print_board(boards.numpy().astype(int))
+    
+
+def instant_augment(batch):
+    state, prob, value, _ = deepcopy(batch)
+    origin = (state, prob)
+    flipped = fliplr(state, prob)
+    states = []
+    probs = []
+    values = [value for _ in range(8)]
+    for i in range(4):
+        states.append(origin[0])
+        states.append(flipped[0])
+        probs.append(origin[1])
+        probs.append(flipped[1])
+        if i < 3:
+            origin = rot90(*origin)
+            flipped = rot90(*flipped)
+    state = torch.concat(states)
+    prob = torch.concat(probs)
+    value = torch.concat(values)
+    return state, prob, value, None
+
+def inspect():
+    raise NotImplementedError

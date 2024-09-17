@@ -1,9 +1,3 @@
-/*********************************************************
- *  common.h
- *  Nine-Board Tic-Tac-Toe
- *  COMP3411/9814 Artificial Intelligence
- *  Alan Blair, CSE, UNSW
- */
 #define FALSE          0
 #define TRUE           1
 
