@@ -30,19 +30,19 @@ class Env(Environment):
         return self.check_full() or self.winPlayer() != 0
 
     def valid_move(self):
-        return valid_move(self.boards, self.curr)
+        return valid_move(self.boards, self.curr + 1)
 
     def switch_turn(self):
         self.turn = [0, -1, 1][self.turn]
         return self.turn
 
     def place(self, curr, action):
-        if self.boards[curr + 1, action + 1] == 2:
+        if self.boards[curr, action] == 2:
             if self.turn == 1:
-                self.boards[curr + 1, action + 1] = 0
+                self.boards[curr, action] = 0
             else:
-                self.boards[curr + 1, action + 1] = 1
-            self.curr = action
+                self.boards[curr, action] = 1
+            self.curr = action - 1
             return True
         return False
 
@@ -53,10 +53,10 @@ class Env(Environment):
         return winPlayer(self.boards)
 
     def current_state(self):
-        return board_to_state(self.curr, self.boards, self.turn)
+        return board_to_state(self.curr + 1, self.boards, self.turn)
 
     def step(self, action):
-        if self.place(self.curr, action):
+        if self.place(self.curr + 1, action + 1):
             self.switch_turn()
 
     def show(self):
