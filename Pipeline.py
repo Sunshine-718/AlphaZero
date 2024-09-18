@@ -4,7 +4,6 @@
 # Created on: 14/Jul/2024  21:00
 import torch
 import numpy as np
-import gymnasium as gym
 from utils import Elo
 from game import Game
 from copy import deepcopy
@@ -346,7 +345,7 @@ class TrainPipeline_SP:
             if (i) % 50 != 0:
                 continue
             total_reward = self.policy_evalutation()
+            writer.add_scalar('Metric/total reward', total_reward, i)
             if total_reward > highest_reward:
                 highest_reward = total_reward
-                writer.add_scalar('Metric/total reward', highest_reward, i)
                 self.policy_value_net.save(best)
