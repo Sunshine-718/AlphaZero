@@ -5,7 +5,6 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from copy import deepcopy
 
 
 class PolicyValueNet:
@@ -47,13 +46,13 @@ class PolicyValueNet:
     def train_step(self, batch):
         self.net.train()
         state, prob, value, _ = batch
-        oppo_state = deepcopy(state)
-        oppo_state[:, -1, :, :] = -oppo_state[:, -1, :, :]
+        # oppo_state = deepcopy(state)
+        # oppo_state[:, -1, :, :] = -oppo_state[:, -1, :, :]
         self.opt.zero_grad()
         log_p_pred, value_pred = self.net(state)
-        _, oppo_value_pred = self.net(oppo_state)
+        # _, oppo_value_pred = self.net(oppo_state)
         v_loss = F.smooth_l1_loss(value_pred, value)
-        v_loss += F.smooth_l1_loss(oppo_value_pred, -value)
+        # v_loss += F.smooth_l1_loss(oppo_value_pred, -value)
         entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
         p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
         loss = p_loss + v_loss

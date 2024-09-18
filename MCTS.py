@@ -75,3 +75,19 @@ class MCTS_AZ(MCTS):
                       for action, node in self.root.children.items()]
         actions, visits = zip(*act_visits)
         return actions, visits
+
+
+class MCTS_AZ_SP(MCTS_AZ):
+    def playout(self, env, dirichlet_alpha=0.3, discount=1):
+        node = self.select_leaf_node(env)
+        action_probs, leaf_value = self.policy(env)
+        if not env.done():
+            if dirichlet_alpha is not None:
+                noise = np.random.dirichlet(
+                    [dirichlet_alpha for _ in action_probs])
+            else:
+                noise = None
+            node.expand(action_probs, noise)
+        else:
+            leaf_value = 0
+        node.update_(leaf_value, discount)

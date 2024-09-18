@@ -3,7 +3,7 @@
 # Written by: Sunshine
 # Created on: 10/Aug/2024  23:47
 import numpy as np
-from MCTS import MCTS, MCTS_AZ
+from MCTS import MCTS, MCTS_AZ, MCTS_AZ_SP
 from abc import abstractmethod, ABC
 from utils import softmax, policy_value_fn
 
@@ -39,7 +39,7 @@ class NetworkPlayer(Player):
     def eval(self):
         self.net.eval()
 
-    def get_action(self, env, discount, *, compute_winrate=False):
+    def get_action(self, env, discount=1, *, compute_winrate=False):
         action_probs, value = self.net(env)
         if compute_winrate:
             self.win_rate = (value + 1) / 2
@@ -118,3 +118,24 @@ class AlphaZeroPlayer(Player):
             return action, action_probs
         else:
             print('WARNING: the board is full')
+
+
+class AlphaZeroPlayer_SP(AlphaZeroPlayer):
+    def __init__(self, policy_value_fn, c_puct=4, n_playout=1000):
+        self.mcts = MCTS_AZ_SP(policy_value_fn, c_puct, n_playout)
+    
+    def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=1):
+        n_actions = env.n_actions
+        action_probs = np.zeros((n_actions,), dtype=np.float32)
+        actions, visits = self.mcts.get_action_visits(
+            env, dirichlet_alpha, discount)
+        if temp == 0:
+            probs = np.zeros((len(visits),), dtype=np.float32)
+            probs[np.where(np.array(visits) == max(visits))
+                    ] = 1 / list(visits).count(max(visits))
+        else:
+            probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
+        action = np.random.choice(actions, p=probs)
+        action_probs[list(actions)] = probs
+        self.mcts.update_with_move(action)
+        return action, action_probs

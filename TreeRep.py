@@ -50,6 +50,12 @@ class TreeNode:
             self.parent.update(-leaf_value * discount, discount)
         self.n_visits += 1
         self.Q += (leaf_value - self.Q) / self.n_visits # Q = ((n-1)*Q_old + leaf_value)/n
+    
+    def update_(self, leaf_value, discount):
+        if self.parent:
+            self.parent.update(leaf_value * discount, discount)
+        self.n_visits += 1
+        self.Q += (leaf_value - self.Q) / self.n_visits # Q = ((n-1)*Q_old + leaf_value)/n
 
     def PUCT(self, c_puct):
         if self.parent is not None and self.parent.is_root() and not self.deterministic:

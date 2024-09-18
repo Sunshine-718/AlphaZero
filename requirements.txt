@@ -4,3 +4,4 @@ tqdm
 tensorboard
 torch-tb-profiler
 torchsummary
+gymnasium[all]
