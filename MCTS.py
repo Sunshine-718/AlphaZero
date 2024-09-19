@@ -89,5 +89,5 @@ class MCTS_AZ_SP(MCTS_AZ):
                 noise = None
             node.expand(action_probs, noise)
         else:
-            leaf_value = 0
+            leaf_value = env.reward
         node.update_(leaf_value, discount)

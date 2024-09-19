@@ -12,6 +12,7 @@ class Env:
         self._done = False
         self.n_actions = self.env.action_space.n
         self.state_dim = self.env.observation_space.high.shape[0]
+        self.reward = 0
 
     def reset(self):
         self.state, _ = self.env.reset()
@@ -28,6 +29,7 @@ class Env:
         return self.state.reshape(1, -1)
 
     def step(self, action):
-        self.state, reward, terminated, truncated, _ = self.env.step(action)
+        self.state, self.reward, terminated, truncated, _ = self.env.step(action)
         self._done = terminated or truncated
-        return self.state, reward, terminated, truncated, None
+        self.reward = -10 if terminated else 1
+        return self.state, self.reward, terminated, truncated, None

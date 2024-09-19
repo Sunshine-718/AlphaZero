@@ -49,7 +49,7 @@ class Game:
             rewards.append(reward)
             next_states.append(next_state)
             if terminated or truncated:
-                discounts = np.array(list(reversed([pow(discount, i) for i in range(steps)])))
+                discounts = np.array(list([pow(discount, i) for i in range(steps)]))
                 rewards = np.array(rewards)
                 assert(len(discounts) == len(rewards))
                 reward = np.sum(discounts * rewards)
