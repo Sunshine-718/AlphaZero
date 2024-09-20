@@ -44,6 +44,12 @@ class Game:
                     self.env, 1e-3, dirichlet_alpha, discount)
             steps += 1
             next_state, reward, terminated, truncated, _ = self.env.step(action)
+            x, x_dot, theta, theta_dot = next_state
+            r1 = (self.env.env.x_threshold - abs(x)) / self.env.env.x_threshold - 0.8
+            r2 = (self.env.env.theta_threshold_radians - abs(theta)) / self.env.env.theta_threshold_radians - 0.5
+            reward = 2 * r1 + r2
+            if terminated:
+                reward = -10
             states.append(state)
             mcts_probs.append(probs)
             rewards.append(reward)
