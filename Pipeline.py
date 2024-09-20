@@ -261,7 +261,7 @@ class TrainPipeline_SP:
         self.az_player.train()
         with torch.no_grad():
             for _ in range(n_games):
-                _, play_data = self.game.single_player(self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
+                _, play_data = self.game.single_player(self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha, max_reward=self.max_reward)
                 play_data = list(play_data)[:]
                 self.episode_len = len(play_data)
                 for data in play_data:
@@ -293,6 +293,7 @@ class TrainPipeline_SP:
         return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new, kl
 
     def policy_evalutation(self):
+        self.policy_value_net.eval()
         self.env.reset()
         agent = NetworkPlayer(self.policy_value_net, True)
         total_reward = 0

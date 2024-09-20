@@ -31,7 +31,8 @@ class Game:
                         print('Game end. Draw')
                 return winner
     
-    def single_player(self, player, temp=1, first_n_steps=12, discount=0.99, dirichlet_alpha=0.3):
+    def single_player(self, player, temp=1, first_n_steps=12, discount=0.99, dirichlet_alpha=0.3, max_reward=None):
+        assert(max_reward is not None)
         state, _ = self.env.reset()
         states, mcts_probs, rewards, next_states = [], [], [], []
         steps = 0
@@ -44,10 +45,6 @@ class Game:
                     self.env, 1e-3, dirichlet_alpha, discount)
             steps += 1
             next_state, reward, terminated, truncated, _ = self.env.step(action)
-            x, x_dot, theta, theta_dot = next_state
-            r1 = (self.env.env.x_threshold - abs(x)) / self.env.env.x_threshold - 0.8
-            r2 = (self.env.env.theta_threshold_radians - abs(theta)) / self.env.env.theta_threshold_radians - 0.5
-            reward = 2 * r1 + r2
             if terminated:
                 reward = -10
             states.append(state)
@@ -56,7 +53,7 @@ class Game:
             next_states.append(next_state)
             if terminated or truncated:
                 discounts = np.array(list([pow(discount, i) for i in range(steps)]))
-                rewards = np.array(rewards)
+                rewards = np.array(rewards) / max_reward
                 assert(len(discounts) == len(rewards))
                 reward = np.sum(discounts * rewards)
                 winner_z = [reward for _ in range(steps)]
