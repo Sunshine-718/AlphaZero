@@ -223,7 +223,7 @@ class TrainPipeline_SP:
     def __init__(self, env_name, name='AlphaZero'):
         self.env_name = env_name
         self.module = load('SinglePlayer')
-        self.env = self.module.Env('CartPole')
+        self.env = self.module.Env(env_name)
         self.game = Game(self.env)
         self.name = f'{name}_{env_name}'
         self.params = './params'
@@ -343,7 +343,7 @@ class TrainPipeline_SP:
             writer.add_scalar('Metric/Entropy', entropy, i)
             writer.add_scalar('Metric/Episode length', self.episode_len, i)
             self.policy_value_net.save(current)
-            if (i) % 50 != 0:
+            if (i) % 10 != 0:
                 continue
             total_reward = self.policy_evalutation()
             writer.add_scalar('Metric/total reward', total_reward, i)

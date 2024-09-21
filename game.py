@@ -45,8 +45,6 @@ class Game:
                     self.env, 1e-3, dirichlet_alpha, discount)
             steps += 1
             next_state, reward, terminated, truncated, _ = self.env.step(action)
-            if terminated:
-                reward = -10
             states.append(state)
             mcts_probs.append(probs)
             rewards.append(reward)

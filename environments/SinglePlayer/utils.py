@@ -6,9 +6,9 @@ import torch
 
 def instant_augment(batch):
     states, probs, values, _ = batch
-    states = torch.concat([states, -states])
-    probs = torch.concat([probs, torch.fliplr(probs)])
-    values = torch.concat([values, values])
+    # states = torch.concat([states, -states])
+    # probs = torch.concat([probs, torch.fliplr(probs)])
+    # values = torch.concat([values, values])
     return states, probs, values, None
 
 if __name__ == '__main__':

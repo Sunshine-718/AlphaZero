@@ -10,5 +10,5 @@ training_config = {
     "play_batch_size": 1,
     "epochs": 1,
     "dirichlet_alpha": 0.1,   # depends on the size of action space
-    "max_reward": 500
+    "max_reward": 300
 }

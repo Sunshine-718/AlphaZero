@@ -31,5 +31,4 @@ class Env:
     def step(self, action):
         self.state, self.reward, terminated, truncated, _ = self.env.step(action)
         self._done = terminated or truncated
-        self.reward = -10 if terminated else 1
         return self.state, self.reward, terminated, truncated, None
