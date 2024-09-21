@@ -33,7 +33,8 @@ class Network(Base):
                                         nn.Linear(h_dim, h_dim),
                                         nn.BatchNorm1d(h_dim),
                                         nn.SiLU(True),
-                                        nn.Linear(h_dim, 1))
+                                        nn.Linear(h_dim, 1),
+                                        nn.Tanh())
         self.device = device
         self.n_actions = out_dim
         self.opt = NAdam(self.parameters(), lr=lr, weight_decay=1e-4, decoupled_weight_decay=True)
