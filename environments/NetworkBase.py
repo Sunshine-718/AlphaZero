@@ -28,10 +28,10 @@ class Base(ABC, nn.Module):
             try:
                 self.cpu()
                 self.load_state_dict(torch.load(path))
-                self.to(self.device)
             except Exception as e:
                 print(f'Failed to load parameters.\n{e}')
-                self.to(self.device)
                 input('Confirm to ramdomly initialize parameters.')
                 self.weight_init()
+            finally:
+                self.to(self.device)
                 
