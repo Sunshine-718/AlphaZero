@@ -29,7 +29,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if __name__ == '__main__':
     module = load(args.env)
-    config = module.config
+    config = module.config.training_config
     try:
         env = module.Env()
         game = Game(env)
