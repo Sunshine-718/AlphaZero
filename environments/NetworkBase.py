@@ -12,10 +12,10 @@ class Base(ABC, nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight)
-                nn.init.constant_(m.bias, 0)
+                # nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight)
-                nn.init.constant_(m.bias, 0)
+                # nn.init.constant_(m.bias, 0)
 
     def save(self, path=None):
         if path is not None:
