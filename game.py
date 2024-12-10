@@ -25,39 +25,10 @@ class Game:
                 winner = self.env.winPlayer()
                 if show:
                     if winner != 0:
-                        print('Game end. Winner is', [
-                              None, 'X', 'O'][int(winner)])
+                        print('Game end. Winner is', [None, 'X', 'O'][int(winner)])
                     else:
                         print('Game end. Draw')
                 return winner
-    
-    def single_player(self, player, temp=1, first_n_steps=12, discount=0.99, dirichlet_alpha=0.3, max_reward=None):
-        assert(max_reward is not None)
-        state, _ = self.env.reset()
-        states, mcts_probs, rewards, next_states = [], [], [], []
-        steps = 0
-        while True:
-            if steps < first_n_steps:
-                action, probs = player.get_action(
-                    self.env, temp, dirichlet_alpha, discount)
-            else:
-                action, probs = player.get_action(
-                    self.env, 1e-3, dirichlet_alpha, discount)
-            steps += 1
-            next_state, reward, terminated, truncated, _ = self.env.step(action)
-            states.append(state)
-            mcts_probs.append(probs)
-            rewards.append(reward)
-            next_states.append(next_state)
-            if terminated or truncated:
-                discounts = np.array(list([pow(discount, i) for i in range(steps)]))
-                rewards = np.array(rewards) / max_reward
-                assert(len(discounts) == len(rewards))
-                reward = np.sum(discounts * rewards)
-                winner_z = [reward for _ in range(steps)]
-                return None, zip(states, mcts_probs, winner_z, next_states)
-            state = next_state
-            
 
     def start_self_play(self, player, temp=1, first_n_steps=5, show=0, discount=0.99, dirichlet_alpha=0.3):
         self.env.reset()

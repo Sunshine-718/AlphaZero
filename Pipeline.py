@@ -10,8 +10,8 @@ from copy import deepcopy
 from torchsummary import summary
 from environments import load
 from policy_value_net import PolicyValueNet
-from ReplayBuffer import ReplayBuffer, ReplayBuffer_structured
-from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer, AlphaZeroPlayer_SP
+from ReplayBuffer import ReplayBuffer
+from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -52,8 +52,7 @@ class TrainPipeline:
     
     def update_best_player(self):
         self.best_net = deepcopy(self.policy_value_net)
-        self.best_player = AlphaZeroPlayer(self.best_net, c_puct=self.c_puct,
-                                         n_playout=self.n_playout)
+        self.best_player = AlphaZeroPlayer(self.best_net, c_puct=self.c_puct, n_playout=self.n_playout)
 
     def collect_selfplay_data(self, n_games=1):
         self.policy_value_net.eval()
@@ -216,137 +215,4 @@ class TrainPipeline:
                 print('New best policy!!')
                 best_counter += 1
                 writer.add_scalar('Metric/Best policy', best_counter, i)
-                self.policy_value_net.save(best)
-
-
-class TrainPipeline_SP:
-    def __init__(self, env_name, name='AlphaZero'):
-        self.env_name = env_name
-        self.module = load('SinglePlayer')
-        self.env = self.module.Env(env_name)
-        self.game = Game(self.env)
-        self.name = f'{name}_{env_name}'
-        self.params = './params'
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        for key, value in self.module.training_config.items():
-            setattr(self, key, value)
-        params = f'{self.params}/{self.name}_current.pt'
-        self.state_dim = self.env.state_dim
-        n_actions = self.env.n_actions
-        self.buffer = ReplayBuffer_structured(self.state_dim, self.buffer_size, n_actions)
-        self.net = self.module.Network(self.lr, self.state_dim, 256, n_actions, self.device)
-        self.policy_value_net = PolicyValueNet(self.net, self.discount, params)
-        self.az_player = AlphaZeroPlayer_SP(self.policy_value_net, c_puct=self.c_puct,
-                                         n_playout=self.n_playout)
-        self.buffer.to(self.policy_value_net.device)
-    
-    def __call__(self):
-        self.run()
-    
-    def show_hyperparams(self):
-        print('=' * 50)
-        print('Hyperparameters:')
-        print(f'\tC_puct: {self.c_puct}')
-        print(f'\tSimulation (AlphaZero): {self.n_playout}')
-        print(f'\tDirichlet alpha: {self.dirichlet_alpha}')
-        print(f'\tBuffer size: {self.buffer_size}')
-        print(f'\tBatch size: {self.batch_size}')
-        print(f'\tRandom steps: {self.first_n_steps}')
-        print(f'\tDiscount: {self.discount}')
-        print(f'\tTemperature: {self.temp}')
-        print('=' * 50)
-    
-    def collect_data(self, n_games=1):
-        self.policy_value_net.eval()
-        self.az_player.train()
-        with torch.no_grad():
-            for _ in range(n_games):
-                _, play_data = self.game.single_player(self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha, max_reward=self.max_reward)
-                play_data = list(play_data)[:]
-                self.episode_len = len(play_data)
-                for data in play_data:
-                    self.buffer.store(*data)
-    
-    @staticmethod
-    def explained_var(pred, target):
-        target = target.cpu().numpy().flatten()
-        return 1 - np.var(target - pred.flatten()) / np.var(target)
-    
-    def policy_update(self):
-        p_loss, v_loss, entropy, grad_norm = [], [], [], []
-        for _ in range(self.epochs):
-            batch = self.buffer.sample(self.batch_size)
-            batch = self.module.instant_augment(batch)
-            old_probs, old_v = self.policy_value_net.policy_value(batch[0])
-            p_l, v_l, ent, g_n = self.policy_value_net.train_step(batch)
-            new_probs, new_v = self.policy_value_net.policy_value(batch[0])
-            p_loss.append(p_l)
-            v_loss.append(v_l)
-            entropy.append(ent)
-            grad_norm.append(g_n)
-            kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-            explained_var_old = self.explained_var(old_v, batch[2])
-            explained_var_new = self.explained_var(new_v, batch[2])
-        print(f'kl: {kl: .5f}\n'
-              f'explained_var_old: {explained_var_old: .3f}\n'
-              f'explained_var_new: {explained_var_new: .3f}')
-        return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new, kl
-
-    def policy_evalutation(self):
-        self.policy_value_net.eval()
-        self.env.reset()
-        agent = NetworkPlayer(self.policy_value_net, True)
-        total_reward = 0
-        while True:
-            action, _ = agent.get_action(self.env)
-            _, reward, terminated, truncated, _ = self.env.step(action)
-            total_reward += reward
-            if terminated or truncated:
-                break
-        return total_reward
-    
-    def run(self):
-        self.show_hyperparams()
-        # fake_input_shape = (1, self.state_dim)
-        # summary(self.net, fake_input_shape, device=self.device)
-        current = f'{self.params}/{self.name}_current.pt'
-        best = f'{self.params}/{self.name}_best.pt'
-        writer = SummaryWriter(filename_suffix=self.name)
-        # fake_input = torch.randn(*fake_input_shape).to(self.device)
-        # writer.add_graph(self.policy_value_net.net, fake_input)
-        preparing = True
-        highest_reward = -float('inf')
-        i = 0
-        while True:
-            self.collect_data(self.play_batch_size)
-            p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), float('inf'), float('inf')
-            if len(self.buffer) > self.batch_size * 10:
-                i += 1
-                if preparing:
-                    print(' ' * 100, end='\r')
-                    print('Preparation phase completed.')
-                    print('Start training...')
-                    preparing = False
-                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new, kl = self.policy_update()
-            else:
-                perc = round(len(self.buffer) / (self.batch_size * 10) * 100, 1)
-                print(f'Preparing for training: {perc}%', end='\r')
-                continue
-            print(f'batch i: {i}, episode_len: {self.episode_len}, '
-                  f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
-            writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
-            writer.add_scalars('Metric/Explained variance', {'Old': ex_var_old, 'New': ex_var_new}, i)
-            writer.add_scalar('Metric/KL Divergence', kl, i)
-            print(f'current self-play batch: {i + 1}')
-            writer.add_scalars(
-                'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
-            writer.add_scalar('Metric/Entropy', entropy, i)
-            writer.add_scalar('Metric/Episode length', self.episode_len, i)
-            self.policy_value_net.save(current)
-            if (i) % 10 != 0:
-                continue
-            total_reward = self.policy_evalutation()
-            writer.add_scalar('Metric/total reward', total_reward, i)
-            if total_reward > highest_reward:
-                highest_reward = total_reward
                 self.policy_value_net.save(best)
