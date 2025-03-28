@@ -31,4 +31,4 @@ if f'NBTTTAgent.{mapping[system]}' not in os.listdir(root):
 
 from .utils import instant_augment, inspect
 from .env import Env
-from .Network import Network
+from .Network import CNN

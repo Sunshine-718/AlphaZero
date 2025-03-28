@@ -32,7 +32,7 @@ class Game:
 
     def start_self_play(self, player, temp=1, first_n_steps=5, show=0, discount=0.99, dirichlet_alpha=0.3):
         self.env.reset()
-        states, mcts_probs, current_players, next_states = [], [], [], []
+        states, mcts_probs, current_players, next_states, masks = [], [], [], [], []
         steps = 0
         while True:
             if steps < first_n_steps:
@@ -43,6 +43,7 @@ class Game:
                     self.env, 1e-3, dirichlet_alpha, discount)
             steps += 1
             states.append(self.env.current_state())
+            masks.append(self.env.valid_mask())
             mcts_probs.append(probs)
             current_players.append(self.env.turn)
             self.env.step(action)
@@ -64,4 +65,6 @@ class Game:
                               [None, 'X', 'O'][int(winner)]}")
                     else:
                         print('Game end. Draw')
-                return winner, zip(states, mcts_probs, winner_z, next_states)
+                dones = [False for _ in range(len(current_players))]
+                dones[-1] = True
+                return winner, zip(states, mcts_probs, winner_z, next_states, dones, masks)

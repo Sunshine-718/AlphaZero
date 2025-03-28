@@ -8,7 +8,7 @@ from torch.optim import NAdam
 from ..NetworkBase import Base
 
 
-class Network(Base):
+class CNN(Base):
     def __init__(self, lr, in_dim, h_dim, out_dim, device='cpu'):
         super().__init__()
         self.hidden1 = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(1, 3), bias=False),
@@ -53,7 +53,7 @@ class Network(Base):
                                         nn.Tanh())
         self.device = device
         self.n_actions = out_dim
-        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=1e-4, decoupled_weight_decay=True)
+        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.1, decoupled_weight_decay=True)
         self.weight_init()
         self.to(self.device)
 

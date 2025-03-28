@@ -4,7 +4,7 @@
 # Created on: 25/Jun/2024  13:03
 import numpy as np
 from ..Environment import Environment
-from .utils import check_winner, valid_move, place, check_full, board_to_state
+from .utils import check_winner, valid_move, place, check_full, board_to_state, valid_mask
 
 
 class Env(Environment):
@@ -12,6 +12,12 @@ class Env(Environment):
         super().__init__()
         self.board = np.zeros((6, 7), dtype=np.float32)
         self.turn = 1
+    
+    def copy(self):
+        new_env = Env()
+        new_env.board = np.copy(self.board)
+        new_env.turn = self.turn
+        return new_env
 
     def reset(self):
         self.__init__()
@@ -22,6 +28,9 @@ class Env(Environment):
 
     def valid_move(self):
         return valid_move(self.board)
+    
+    def valid_mask(self):
+        return valid_mask(self.board)
 
     def switch_turn(self):
         self.turn = [0, -1, 1][self.turn]

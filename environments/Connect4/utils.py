@@ -71,13 +71,13 @@ def inspect(net, board=None):
             board, 1)).float().to(net.device)
         p0, v0 = net(state0)
         probs0 = torch.exp(p0).detach().cpu().numpy().flatten()
-        value0 = v0.item()
+        value0 = np.tanh(v0.item())
         board[5, 3] = 1
         state1 = torch.from_numpy(board_to_state(
             board, -1)).float().to(net.device)
         p1, v1 = net(state1)
         probs1 = torch.exp(p1).detach().cpu().numpy().flatten()
-        value1 = v1.item()
+        value1 = np.tanh(v1.item())
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
         print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
     print(f'State-value X: {value0: .4f}, State-value O: {value1: .4f}')
@@ -85,11 +85,12 @@ def inspect(net, board=None):
 
 
 def instant_augment(batch):
-    state, prob, value, next_state = deepcopy(batch)
+    state, prob, value, next_state, done, mask = deepcopy(batch)
     for idx, i in enumerate(state):
         for idx_j, j in enumerate(i):
             state[idx, idx_j] = torch.fliplr(j)
         prob[[idx]] = torch.fliplr(prob[[idx]])
+        mask[[idx]] = torch.fliplr(mask[[idx]])
     for idx, i in enumerate(next_state):
         for idx_j, j in enumerate(i):
             next_state[idx, idx_j] = torch.fliplr(j)
@@ -97,7 +98,9 @@ def instant_augment(batch):
     prob = torch.concat([prob, batch[1]])
     value = torch.concat([value, batch[2]])
     next_state = torch.concat([next_state, batch[3]])
-    return state, prob, value, next_state
+    done = torch.concat([done, batch[4]])
+    mask = torch.concat([mask, batch[5]])
+    return state, prob, value, next_state, done, mask
 
 
 @njit
@@ -126,3 +129,7 @@ def symmetric_state(state):
 @njit
 def valid_move(board):
     return [i for i in range(board.shape[1]) if 0 in board[:, i]]
+
+@njit
+def valid_mask(board):
+    return [0 in board[:, i] for i in range(board.shape[1])]

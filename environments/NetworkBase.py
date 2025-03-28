@@ -19,19 +19,14 @@ class Base(ABC, nn.Module):
 
     def save(self, path=None):
         if path is not None:
-            self.cpu()
             torch.save(self.state_dict(), path)
-            self.to(self.device)
 
     def load(self, path=None):
         if path is not None:
             try:
-                self.cpu()
-                self.load_state_dict(torch.load(path))
+                self.load_state_dict(torch.load(path, map_location=self.device))
             except Exception as e:
                 print(f'Failed to load parameters.\n{e}')
                 input('Confirm to ramdomly initialize parameters.')
                 self.weight_init()
-            finally:
-                self.to(self.device)
                 
