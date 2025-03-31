@@ -4,7 +4,7 @@
 # Created on: 14/Jul/2024  21:00
 import torch
 import numpy as np
-from utils import Elo
+from utils import Elo, explained_var
 from game import Game
 from copy import deepcopy
 from torchsummary import summary
@@ -19,8 +19,8 @@ torch.set_float32_matmul_precision('high')
 
 
 class TrainPipeline:
-    def __init__(self, env_name, name='AZ'):
-        collection = ('Connect4', ) # NBTTT implementation not yet finished.
+    def __init__(self, env_name='Connect4', model='CNN', name='AZ'):
+        collection = ('Connect4', )  # NBTTT implementation not yet finished.
         if env_name not in collection:
             raise ValueError(
                 f'Environment does not exist, available env: {collection}')
@@ -33,24 +33,24 @@ class TrainPipeline:
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         for key, value in self.module.training_config.items():
             setattr(self, key, value)
-        params = f'{self.params}/{self.name}_current.pt'
         self.buffer = ReplayBuffer(self.module.network_config['in_dim'],
                                    self.buffer_size,
                                    self.module.network_config['out_dim'],
                                    self.module.env_config['row'],
                                    self.module.env_config['col'],
                                    device=self.device)
-        self.net = self.module.CNN(lr=self.lr, device=self.device)
+        if model == 'CNN':
+            self.net = self.module.CNN(lr=self.lr, device=self.device)
+        elif model == 'ViT':
+            self.net = self.module.ViT(lr=self.lr, device=self.device)
+        else:
+            raise ValueError(f'Unknown model type: {model}')
+        params = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
         self.policy_value_net = PolicyValueNet(self.net, self.discount, params)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.update_best_player()
         self.elo = Elo(self.init_elo, 1500)
-
-    def update_best_player(self):
-        self.best_net = deepcopy(self.policy_value_net)
-        self.best_player = AlphaZeroPlayer(
-            self.best_net, c_puct=self.c_puct, n_playout=self.n_playout)
 
     def collect_selfplay_data(self, n_games=1):
         self.policy_value_net.eval()
@@ -63,33 +63,96 @@ class TrainPipeline:
                 self.episode_len = len(play_data)
                 for data in play_data:
                     self.buffer.store(*data)
-            self.buffer.finish()
-
-    @staticmethod
-    def explained_var(pred, target):
-        target = target.cpu().numpy().flatten()
-        return 1 - np.var(target - pred.flatten()) / np.var(target)
 
     def policy_update(self):
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
+        dataloader = self.buffer.dataloader(self.batch_size)
+        state, _, value, *_ = self.buffer.sample(self.batch_size)
+        old_probs, old_v = self.policy_value_net.policy_value(state)
         for _ in range(self.epochs):
-            batch = self.buffer.sample(self.batch_size)
-            batch = self.module.instant_augment(batch)
-            old_probs, old_v = self.policy_value_net.policy_value(batch[0])
-            p_l, v_l, ent, g_n = self.policy_value_net.train_step(batch)
-            new_probs, new_v = self.policy_value_net.policy_value(batch[0])
+            p_l, v_l, ent, g_n = self.policy_value_net.train_step(dataloader, self.module.instant_augment)
             p_loss.append(p_l)
             v_loss.append(v_l)
             entropy.append(ent)
             grad_norm.append(g_n)
-            kl = np.mean(np.sum(
-                old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-            explained_var_old = self.explained_var(old_v, batch[2])
-            explained_var_new = self.explained_var(new_v, batch[2])
+        new_probs, new_v = self.policy_value_net.policy_value(state)
+        kl = np.mean(np.sum(
+            old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
+        explained_var_old = explained_var(old_v, value)
+        explained_var_new = explained_var(new_v, value)
         print(f'kl: {kl: .5f}\n'
               f'explained_var_old: {explained_var_old: .3f}\n'
               f'explained_var_new: {explained_var_new: .3f}')
         return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new, kl
+
+    def run(self):
+        self.show_hyperparams()
+        current = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
+        best = f'{self.params}/{self.name}_{self.net.name()}_best.pt'
+        writer = SummaryWriter(filename_suffix=self.name)
+        # fake_input_shape = (self.module.network_config['in_dim'],
+        #                     self.module.env_config['row'],
+        #                     self.module.env_config['col'])
+        # summary(self.net, fake_input_shape, device=self.device)
+        # fake_input = torch.randn(1, *fake_input_shape).to(self.device)
+        # writer.add_graph(self.policy_value_net.net, fake_input)
+        writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': self.init_elo,
+                                          f'MCTS_{self.pure_mcts_n_playout}': 1500}, 0)
+        # preparing = True
+        i = 0
+        best_counter = 0
+        while True:
+            self.collect_selfplay_data(self.play_batch_size)
+            p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), \
+                float('inf'), float('inf')
+            i += 1
+            p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new, kl = self.policy_update()
+            
+            print(f'batch i: {i}, episode_len: {self.episode_len}, '
+                  f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
+
+            writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
+            writer.add_scalars('Metric/Explained variance',
+                               {'Old': ex_var_old, 'New': ex_var_new}, i)
+            writer.add_scalar('Metric/KL Divergence', kl, i)
+            writer.add_scalars(
+                'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
+            writer.add_scalar('Metric/Entropy', entropy, i)
+            writer.add_scalar('Metric/Episode length', self.episode_len, i)
+
+            if (i) % 10 != 0:
+                continue
+
+            print(f'current self-play batch: {i + 1}')
+            r_a, r_b = self.update_elo()
+            print(f'Elo score: AlphaZero: {r_a: .2f}, Benchmark: {r_b: .2f}')
+            writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': r_a,
+                                              f'MCTS_{self.pure_mcts_n_playout}': r_b}, i)
+
+            if self.env_name == 'Connect4':
+                p0, v0, p1, v1 = self.module.inspect(self.policy_value_net.net)
+                writer.add_scalars('Metric/Initial Value',
+                                   {'X': v0, 'O': v1}, i)
+                writer.add_scalars('Action probability/X',
+                                   {str(idx): i for idx, i in enumerate(p0)}, i)
+                writer.add_scalars('Action probability/O',
+                                   {str(idx): i for idx, i in enumerate(p1)}, i)
+                writer.add_scalars('Action probability/X_cummulative',
+                                   {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, i)
+                writer.add_scalars('Action probability/O_cummulative',
+                                   {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, i)
+            self.policy_value_net.save(current)
+
+            if (i) % 50 != 0:
+                continue
+
+            flag, win_rate = self.select_best_player(self.num_eval)
+            writer.add_scalar('Metric/win rate', win_rate, i)
+            if flag:
+                print('New best policy!!')
+                best_counter += 1
+                writer.add_scalar('Metric/Best policy', best_counter, i)
+                self.policy_value_net.save(best)
 
     def update_elo(self):
         print('Updating elo score...')
@@ -137,9 +200,6 @@ class TrainPipeline:
         print('Complete.')
         return flag, win_rate
 
-    def __call__(self):
-        self.run()
-
     def show_hyperparams(self):
         print('=' * 50)
         print('Hyperparameters:')
@@ -154,75 +214,10 @@ class TrainPipeline:
         print(f'\tTemperature: {self.temp}')
         print('=' * 50)
 
-    def run(self):
-        self.show_hyperparams()
-        fake_input_shape = (self.module.network_config['in_dim'],
-                            self.module.env_config['row'],
-                            self.module.env_config['col'])
-        summary(self.net, fake_input_shape, device=self.device)
-        current = f'{self.params}/{self.name}_current.pt'
-        best = f'{self.params}/{self.name}_best.pt'
-        writer = SummaryWriter(filename_suffix=self.name)
-        fake_input = torch.randn(1, *fake_input_shape).to(self.device)
-        writer.add_graph(self.policy_value_net.net, fake_input)
-        writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': self.init_elo,
-                                          f'MCTS_{self.pure_mcts_n_playout}': 1500}, 0)
-        preparing = True
-        i = 0
-        best_counter = 0
-        while True:
-            self.collect_selfplay_data(self.play_batch_size)
-            p_loss, v_loss, entropy, grad_norm = float(
-                'inf'), float('inf'), float('inf'), float('inf')
-            if len(self.buffer) > self.batch_size * 10:
-                i += 1
-                if preparing:
-                    print(' ' * 100, end='\r')
-                    print('Preparation phase completed.')
-                    print('Start training...')
-                    preparing = False
-                p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new, kl = self.policy_update()
-            else:
-                perc = round(len(self.buffer) /
-                             (self.batch_size * 10) * 100, 1)
-                print(f'Preparing for training: {perc}%', end='\r')
-                continue
-            print(f'batch i: {i}, episode_len: {self.episode_len}, '
-                  f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
-            writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
-            writer.add_scalars('Metric/Explained variance',
-                               {'Old': ex_var_old, 'New': ex_var_new}, i)
-            writer.add_scalar('Metric/KL Divergence', kl, i)
-            writer.add_scalars(
-                'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
-            writer.add_scalar('Metric/Entropy', entropy, i)
-            writer.add_scalar('Metric/Episode length', self.episode_len, i)
-            if (i) % 10 != 0:
-                continue
-            print(f'current self-play batch: {i + 1}')
-            r_a, r_b = self.update_elo()
-            print(f'Elo score: AlphaZero: {r_a: .2f}, Benchmark: {r_b: .2f}')
-            writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': r_a,
-                                              f'MCTS_{self.pure_mcts_n_playout}': r_b}, i)
-            if self.env_name == 'Connect4':
-                p0, v0, p1, v1 = self.module.inspect(self.policy_value_net.net)
-                writer.add_scalars('Metric/Initial Value',
-                                   {'X': v0, 'O': v1}, i)
-                writer.add_scalars('Action probability/X',
-                                   {str(idx): i for idx, i in enumerate(p0)}, i)
-                writer.add_scalars('Action probability/O',
-                                   {str(idx): i for idx, i in enumerate(p1)}, i)
-                writer.add_scalars('Action probability/X_cummulative',
-                                   {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, i)
-                writer.add_scalars('Action probability/O_cummulative',
-                                   {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, i)
-            self.policy_value_net.save(current)
-            if (i) % 50 != 0:
-                continue
-            flag, win_rate = self.select_best_player(self.num_eval)
-            writer.add_scalar('Metric/win rate', win_rate, i)
-            if flag:
-                print('New best policy!!')
-                best_counter += 1
-                writer.add_scalar('Metric/Best policy', best_counter, i)
-                self.policy_value_net.save(best)
+    def update_best_player(self):
+        self.best_net = deepcopy(self.policy_value_net)
+        self.best_player = AlphaZeroPlayer(
+            self.best_net, c_puct=self.c_puct, n_playout=self.n_playout)
+
+    def __call__(self):
+        self.run()

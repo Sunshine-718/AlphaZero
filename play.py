@@ -20,8 +20,9 @@ parser.add_argument('--self_play', action='store_true',
                     help='AlphaZero play against itself')
 parser.add_argument('--model', type=str,
                     default='current', help='Model type')
+parser.add_argument('--network', type=str, default='CNN', help='Network type')
 parser.add_argument('--env', type=str, default='Connect4', help='env name')
-parser.add_argument('--name', type=str, default='AlphaZero', help='Model name')
+parser.add_argument('--name', type=str, default='AZ', help='Model name')
 
 args = parser.parse_args()
 
@@ -39,7 +40,7 @@ if __name__ == '__main__':
                          module.network_config['out_dim'],
                          device)
         policy_value_net = PolicyValueNet(
-            net, config['discount'], f'./params/{args.name}_{args.env}_{args.model}.pt')
+            net, config['discount'], f'./params/{args.name}_{args.env}_{args.network}_{args.model}.pt')
         if args.n == 0:
             az_player = NetworkPlayer(policy_value_net)
         else:

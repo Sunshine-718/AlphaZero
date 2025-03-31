@@ -27,6 +27,13 @@ class Environment(ABC):
         Function to return valid action based on current board.
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    def valid_mask(self):
+        """
+        Function to return valid action mask based on current board.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def switch_turn(self):

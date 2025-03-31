@@ -5,7 +5,6 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from copy import deepcopy
 
 
 class PolicyValueNet:
@@ -18,15 +17,6 @@ class PolicyValueNet:
         self.n_actions = net.n_actions
         if params:
             self.net.load(params)
-
-    def train(self):
-        self.net.train()
-
-    def eval(self):
-        self.net.eval()
-
-    def __call__(self, env):
-        return self.policy_value_fn(env)
 
     def policy_value(self, state, mask=None):
         self.net.eval()
@@ -46,29 +36,35 @@ class PolicyValueNet:
         action_probs = list(zip(valid, probs.flatten()[valid]))
         return action_probs, value.flatten()[0]
 
-    def train_step(self, batch):
+    def train_step(self, dataloader, augmentation=None):
         self.net.train()
-        state, prob, value, _, _, mask = batch
-        oppo_state = deepcopy(state)
-        oppo_state[:, -1, :, :] = -oppo_state[:, -1, :, :]
-        self.opt.zero_grad()
-        log_p_pred, value_logit = self.net(state)
-        _, oppo_value_pred = self.net(oppo_state)
-        v_loss = F.binary_cross_entropy_with_logits(value_logit, (value + 1) * 0.5)
-        v_loss += F.binary_cross_entropy_with_logits(oppo_value_pred, (-value + 1) * 0.5)
-        p_loss = (F.kl_div(log_p_pred, prob, reduction='none') * mask).mean()
-        loss = p_loss + v_loss
-        loss.backward()
-        self.opt.step()
+        p_losses = []
+        v_losses = []
+        log_ps = []
+        for batch in dataloader:
+            if augmentation is not None:
+                batch = augmentation(batch)
+            state, prob, value, _, _, mask = batch
+            self.opt.zero_grad()
+            log_p_pred, value_logit = self.net(state)
+            log_ps.append(log_p_pred.detach())
+            v_loss = F.binary_cross_entropy_with_logits(value_logit, (value + 1) * 0.5)
+            p_loss = (F.kl_div(log_p_pred, prob, reduction='none') * mask).mean()
+            loss = p_loss + v_loss
+            p_losses.append(float(p_loss))
+            v_losses.append(float(v_loss))
+            loss.backward()
+            self.opt.step()
         self.net.eval()
         with torch.no_grad():
+            log_p_pred = torch.concat(log_ps)
             entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
             total_norm = 0
             for param in self.net.parameters():
                 param_norm = param.grad.data.norm(2)
                 total_norm += param_norm.item() ** 2
             total_norm = total_norm ** 0.5
-        return float(p_loss), float(v_loss), float(entropy), total_norm
+        return np.mean(p_losses), np.mean(v_losses), float(entropy), total_norm
 
     def save(self, params=None):
         if params is None:
@@ -79,3 +75,12 @@ class PolicyValueNet:
         if params is None:
             params = self.params
         self.net.load(params)
+
+    def train(self):
+        self.net.train()
+
+    def eval(self):
+        self.net.eval()
+
+    def __call__(self, env):
+        return self.policy_value_fn(env)

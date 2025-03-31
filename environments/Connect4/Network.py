@@ -45,6 +45,10 @@ class CNN(Base):
                                         nn.BatchNorm1d(h_dim * 4),
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 4, 1))
+        nn.init.zeros_(self.policy_head[-1].weight)
+        nn.init.zeros_(self.policy_head[-1].bias)
+        nn.init.zeros_(self.value_head[-1].weight)
+        nn.init.zeros_(self.value_head[-1].bias)
         self.device = device
         self.n_actions = out_dim
         self.opt = AdamW(self.parameters(), lr=lr, weight_decay=0.1)
@@ -56,11 +60,11 @@ class CNN(Base):
 
     def forward(self, x, mask=None):
         hidden = self.hidden(x)
-        prob_logit:torch.Tensor = self.policy_head(hidden)
+        prob_logit = self.policy_head(hidden)
         if mask is not None:
             prob_logit.masked_fill_(~mask, -float('inf'))
-        prob = F.log_softmax(prob_logit, dim=-1)
-        return prob, self.value_head(hidden)
+        log_prob = F.log_softmax(prob_logit, dim=-1)
+        return log_prob, self.value_head(hidden)
 
 
 class PatchEmbedding(nn.Module):
@@ -83,7 +87,7 @@ class PatchEmbedding(nn.Module):
 
 
 class ViT(Base):
-    def __init__(self, lr, in_channels=3, embed_dim=128, num_classes=7, depth=6, num_heads=8, dropout=0.1, device='cpu', params='./params/vit.pt'):
+    def __init__(self, lr, in_channels=3, embed_dim=64, num_action=7, depth=6, num_heads=8, dropout=0.1, device='cpu'):
         super().__init__()
         self.patch_embed = PatchEmbedding(in_channels, embed_dim)
         encoder_layer = nn.TransformerEncoderLayer(
@@ -91,14 +95,18 @@ class ViT(Base):
         self.transformer = nn.TransformerEncoder(
             encoder_layer, num_layers=depth)
         self.policy_head = nn.Sequential(nn.BatchNorm1d(embed_dim),
-                                         nn.Linear(embed_dim, num_classes))
+                                         nn.Linear(embed_dim, num_action))
         self.value_head = nn.Sequential(nn.BatchNorm1d(embed_dim),
                                         nn.Linear(embed_dim, embed_dim),
                                         nn.SiLU(True),
                                         nn.Linear(embed_dim, 1))
+        nn.init.zeros_(self.policy_head[-1].weight)
+        nn.init.zeros_(self.policy_head[-1].bias)
+        nn.init.zeros_(self.value_head[-1].weight)
+        nn.init.zeros_(self.value_head[-1].bias)
+        self.n_actions = num_action
         self.device = device
         self.to(device)
-        self.params = params
         self.opt = AdamW(self.parameters(), lr, weight_decay=0.1)
 
     def name(self):
@@ -106,10 +114,11 @@ class ViT(Base):
 
     def forward(self, x, mask=None):
         x = self.patch_embed(x)
-        x = self.transformer(x, mask=None)
-        x = x[:, 0, :]  # CLS token
-        prob_logit = self.policy_head(x)
+        x = self.transformer(x)
+        cls_token = x[:, 0, :]
+        prob_logit = self.policy_head(cls_token)
         if mask is not None:
             prob_logit.masked_fill_(~mask, -float('inf'))
-        prob = F.log_softmax(prob_logit, dim=-1)
-        return prob, self.value_head(x)
+        log_prob = F.log_softmax(prob_logit, dim=-1)
+        value_logit = self.value_head(cls_token)
+        return log_prob, value_logit

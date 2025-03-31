@@ -39,15 +39,14 @@ class NetworkPlayer(Player):
     def eval(self):
         self.net.eval()
 
-    def get_action(self, env, discount=1, *, compute_winrate=False):
+    def get_action(self, env, discount=1):
         action_probs, value = self.net(env)
-        if compute_winrate:
-            self.win_rate = (value + 1) / 2
         if self.deterministic:
             return max(action_probs, key=lambda x: x[1])[0], None
         else:
             actions, probs = list(zip(*action_probs))
-            return np.random.choice(actions, p=softmax(probs)), None
+            probs = probs / sum(probs)
+            return np.random.choice(actions, p=probs), None
 
 
 class Human(Player):
@@ -65,13 +64,10 @@ class MCTSPlayer(Player):
     def reset_player(self):
         self.mcts.update_with_move(-1)
 
-    def get_action(self, env, discount=1, *, compute_winrate=False):
+    def get_action(self, env, discount=1):
         valid = env.valid_move()
         if len(valid) > 0:
             action = self.mcts.get_action(env, discount)
-            if compute_winrate:
-                Q = self.mcts.root.children[action].Q
-                self.win_rate = (Q + 1) / 2
             self.reset_player()
             return action
         else:

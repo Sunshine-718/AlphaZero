@@ -8,7 +8,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 
 class ReplayBuffer:
-    def __init__(self, state_dim, capacity, action_dim, row, col, device='cpu'):
+    def __init__(self, state_dim, capacity, action_dim, row, col, replay_ratio=0.25, device='cpu'):
         self.state = torch.full(
             (capacity, state_dim, row, col), torch.nan, dtype=torch.float32, device=device)
         self.prob = torch.full(
@@ -19,8 +19,8 @@ class ReplayBuffer:
             self.state, torch.nan, dtype=torch.float32, device=device)
         self.done = torch.full_like(
             self.value, torch.nan, dtype=torch.bool, device=device)
-        self.time = torch.full((capacity, ), torch.nan, dtype=torch.float32, device=device)
         self.mask = torch.full((capacity, action_dim), torch.nan, dtype=torch.bool, device=device)
+        self.replay_ratio = replay_ratio
         self.count = 0
         self.device = device
 
@@ -40,7 +40,6 @@ class ReplayBuffer:
         self.next_state = torch.full_like(
             self.next_state, torch.nan, dtype=torch.float32)
         self.done = torch.full_like(self.done, torch.nan, dtype=torch.bool)
-        self.time = torch.full_like(self.time, torch.nan, dtype=torch.float32)
         self.mask = torch.full_like(self.mask, torch.nan, dtype=torch.bool)
         self.count = 0
 
@@ -50,7 +49,6 @@ class ReplayBuffer:
         self.value = self.value.to(device)
         self.next_state = self.next_state.to(device)
         self.done = self.done.to(device)
-        self.time = self.time.to(device)
         self.mask = self.mask.to(device)
         self.device = device
 
@@ -71,14 +69,10 @@ class ReplayBuffer:
                 torch.FloatTensor).to(self.device)
         self.next_state[idx] = next_state
         self.done[idx] = done
-        self.time[idx] = 1
         if isinstance(mask, list):
             mask = torch.tensor(mask, dtype=torch.bool, device=self.device)
         self.mask[idx] = mask
         return idx
-
-    def finish(self):
-        self.time = self.time - 1
     
     def sample(self, batch_size):
         idx = torch.from_numpy(np.random.randint(
@@ -86,10 +80,15 @@ class ReplayBuffer:
         return self.state[idx], self.prob[idx, :], self.value[idx, :], self.next_state[idx], self.done[idx], self.mask[idx]
 
     def dataloader(self, batch_size):
-        dataset = TensorDataset(self.state[:self.__len__()],
-                                self.prob[:self.__len__()],
-                                self.value[:self.__len__()],
-                                self.next_state[:self.__len__()],
-                                self.done[:self.__len__()],
-                                self.mask[:self.__len__()])
+        total = self.__len__()
+        if self.__len__() > 1000:
+            total = int(self.__len__() * self.replay_ratio)
+        idx = torch.from_numpy(np.random.randint(
+            0, self.__len__(), total, dtype=np.int64))
+        dataset = TensorDataset(self.state[idx],
+                                self.prob[idx],
+                                self.value[idx],
+                                self.next_state[idx],
+                                self.done[idx],
+                                self.mask[idx])
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)

@@ -57,8 +57,7 @@ class Game:
                     winner_z[np.array(current_players) == winner] = 1
                     winner_z[np.array(current_players) != winner] = -1
                     for idx, i in enumerate(winner_z):
-                        winner_z[idx] = i * \
-                            pow(discount, len(winner_z) - idx - 1)
+                        winner_z[idx] = i * pow(discount, len(winner_z) - idx - 1)
                 if show:
                     if winner != 0:
                         print(f"Game end. Wineer is Player: {

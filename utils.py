@@ -11,7 +11,7 @@ class Elo:
     def __init__(self, init_A=1500, init_B=1500):
         self.R_A = init_A
         self.R_B = init_B
-    
+
     def update(self, result_a, k=32):
         """
         :param result_a: 1 (A win), 0.5 (draw), 0 (A lose).
@@ -19,8 +19,8 @@ class Elo:
         """
         expected_a = 1 / (1 + pow(10, (self.R_B - self.R_A) / 400))
         expected_b = 1 / (1 + pow(10, (self.R_A - self.R_B) / 400))
-        self.R_A = max(self.R_A +  k * (result_a - expected_a), 1500)
-        self.R_B = max(self.R_B +  k * ((1 - result_a) - expected_b), 1500)
+        self.R_A = max(self.R_A + k * (result_a - expected_a), 1500)
+        self.R_B = max(self.R_B + k * ((1 - result_a) - expected_b), 1500)
         return self.R_A, self.R_B
 
 
@@ -57,7 +57,12 @@ def set_learning_rate(optimizer, lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-        
+
 def softmax(x):
     probs = np.exp(x - np.max(x))
     return probs / np.sum(probs)
+
+
+def explained_var(pred, target):
+    target = target.cpu().numpy().flatten()
+    return 1 - np.var(target - pred.flatten()) / np.var(target)
