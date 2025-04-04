@@ -13,6 +13,7 @@ from policy_value_net import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 from torch.utils.tensorboard import SummaryWriter
+from tqdm.auto import trange
 
 
 torch.set_float32_matmul_precision('high')
@@ -55,29 +56,33 @@ class TrainPipeline:
     def collect_selfplay_data(self, n_games=1):
         self.policy_value_net.eval()
         self.az_player.train()
+        episode_len = []
         with torch.no_grad():
-            for _ in range(n_games):
+            for _ in trange(n_games):
                 _, play_data = self.game.start_self_play(
                     self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
                 play_data = list(play_data)[:]
-                self.episode_len = len(play_data)
+                episode_len.append(len(play_data)) 
                 for data in play_data:
                     self.buffer.store(*data)
+        self.episode_len = int(np.mean(episode_len))
 
     def policy_update(self):
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
-        dataloader = self.buffer.dataloader(self.batch_size)
         state, _, value, *_ = self.buffer.sample(self.batch_size)
         old_probs, old_v = self.policy_value_net.policy_value(state)
         for _ in range(self.epochs):
-            p_l, v_l, ent, g_n = self.policy_value_net.train_step(dataloader, self.module.instant_augment)
+            p_l, v_l, ent, g_n = self.policy_value_net.train_step(self.buffer.sample(self.batch_size), 
+                                                                  self.module.instant_augment)
             p_loss.append(p_l)
             v_loss.append(v_l)
             entropy.append(ent)
             grad_norm.append(g_n)
-        new_probs, new_v = self.policy_value_net.policy_value(state)
-        kl = np.mean(np.sum(
-            old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
+            new_probs, new_v = self.policy_value_net.policy_value(state)
+            kl = np.mean(np.sum(
+                old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
+            if kl > 0.015:
+                break
         explained_var_old = explained_var(old_v, value)
         explained_var_new = explained_var(new_v, value)
         print(f'kl: {kl: .5f}\n'

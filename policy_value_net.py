@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
+from copy import deepcopy
 
 
 class PolicyValueNet:
@@ -36,35 +37,31 @@ class PolicyValueNet:
         action_probs = list(zip(valid, probs.flatten()[valid]))
         return action_probs, value.flatten()[0]
 
-    def train_step(self, dataloader, augmentation=None):
+    def train_step(self, batch, augmentation=None):
         self.net.train()
-        p_losses = []
-        v_losses = []
-        log_ps = []
-        for batch in dataloader:
-            if augmentation is not None:
-                batch = augmentation(batch)
-            state, prob, value, _, _, mask = batch
-            self.opt.zero_grad()
-            log_p_pred, value_logit = self.net(state)
-            log_ps.append(log_p_pred.detach())
-            v_loss = F.binary_cross_entropy_with_logits(value_logit, (value + 1) * 0.5)
-            p_loss = (F.kl_div(log_p_pred, prob, reduction='none') * mask).mean()
-            loss = p_loss + v_loss
-            p_losses.append(float(p_loss))
-            v_losses.append(float(v_loss))
-            loss.backward()
-            self.opt.step()
+        batch = augmentation(batch)
+        state, prob, value, *_ = batch
+        state_ = deepcopy(state)
+        state_[:, -1, :, :] = -state_[:, -1, :, :]
+        self.opt.zero_grad()
+        log_p_pred, value_logit = self.net(state)
+        _, value_logit_ = self.net(state_)
+        v_loss = F.smooth_l1_loss(torch.tanh(value_logit), value)
+        v_loss += F.smooth_l1_loss(torch.tanh(value_logit_), -value)
+        p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
+        loss = p_loss + v_loss
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
+        self.opt.step()
         self.net.eval()
         with torch.no_grad():
-            log_p_pred = torch.concat(log_ps)
             entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
             total_norm = 0
             for param in self.net.parameters():
                 param_norm = param.grad.data.norm(2)
                 total_norm += param_norm.item() ** 2
             total_norm = total_norm ** 0.5
-        return np.mean(p_losses), np.mean(v_losses), float(entropy), total_norm
+        return float(p_loss), float(v_loss), float(entropy), total_norm
 
     def save(self, params=None):
         if params is None:

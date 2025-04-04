@@ -34,11 +34,10 @@ if __name__ == '__main__':
     try:
         env = module.Env()
         game = Game(env)
-        net = module.CNN(0,
-                         module.network_config['in_dim'],
-                         module.network_config['h_dim'],
-                         module.network_config['out_dim'],
-                         device)
+        if args.network == 'CNN':
+            net = module.CNN(0, device=device)
+        elif args.network == 'ViT':
+            net = module.ViT(0, device=device)
         policy_value_net = PolicyValueNet(
             net, config['discount'], f'./params/{args.name}_{args.env}_{args.network}_{args.model}.pt')
         if args.n == 0:

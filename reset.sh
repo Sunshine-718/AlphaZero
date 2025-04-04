@@ -1,4 +1,4 @@
-#!/bin/dash
+#! usr/bin/dash
 
 confirm() {
     while true; do

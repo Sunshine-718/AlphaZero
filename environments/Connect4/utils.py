@@ -27,34 +27,32 @@ def check_full(board):
 
 @njit
 def check_winner(board):
-    # Dimensions of the board
     rows, cols = board.shape
 
-    # Check horizontal locations for a win
     for row in range(rows):
         for col in range(cols - 3):
-            if abs(board[row, col] + board[row, col + 1] + board[row, col + 2] + board[row, col + 3]) == 4:
-                return board[row, col]
+            current = board[row, col]
+            if current != 0 and current == board[row, col+1] and current == board[row, col+2] and current == board[row, col+3]:
+                return current
 
-    # Check vertical locations for a win
     for row in range(rows - 3):
         for col in range(cols):
-            if abs(board[row, col] + board[row + 1, col] + board[row + 2, col] + board[row + 3, col]) == 4:
-                return board[row, col]
+            current = board[row, col]
+            if current != 0 and current == board[row+1, col] and current == board[row+2, col] and current == board[row+3, col]:
+                return current
 
-    # Check positively sloped diagonals
     for row in range(rows - 3):
         for col in range(cols - 3):
-            if abs(board[row, col] + board[row + 1, col + 1] + board[row + 2, col + 2] + board[row + 3, col + 3]) == 4:
-                return board[row, col]
+            current = board[row, col]
+            if current != 0 and current == board[row+1, col+1] and current == board[row+2, col+2] and current == board[row+3, col+3]:
+                return current
 
-    # Check negatively sloped diagonals
     for row in range(3, rows):
         for col in range(cols - 3):
-            if abs(board[row, col] + board[row - 1, col + 1] + board[row - 2, col + 2] + board[row - 3, col + 3]) == 4:
-                return board[row, col]
+            current = board[row, col]
+            if current != 0 and current == board[row-1, col+1] and current == board[row-2, col+2] and current == board[row-3, col+3]:
+                return current
 
-    # If no winner, return 0
     return 0
 
 
@@ -117,13 +115,6 @@ def print_row(action, probX, probO, max_X, max_O):
     print(f'action: {action}, prob_X: {probX * 100: 02.2f}%', end='\t')
     print('⭐️ ' if probO == max_O else '   ', end='')
     print(f'action: {action}, prob_O: {probO * 100: 02.2f}%')
-
-
-def symmetric_state(state):
-    state = deepcopy(state)
-    for idx, i in enumerate(state[0]):
-        state[0, idx] = np.fliplr(i)
-    return state
 
 
 @njit
