@@ -148,9 +148,6 @@ class TrainPipeline:
                                    {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, i)
             self.policy_value_net.save(current)
 
-            if (i) % 50 != 0:
-                continue
-
             flag, win_rate = self.select_best_player(self.num_eval)
             writer.add_scalar('Metric/win rate', win_rate, i)
             if flag:
