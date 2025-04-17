@@ -39,7 +39,8 @@ class PolicyValueNet:
 
     def train_step(self, batch, augmentation=None):
         self.net.train()
-        batch = augmentation(batch)
+        if augmentation is not None:
+            batch = augmentation(batch)
         state, prob, value, *_ = batch
         state_ = deepcopy(state)
         state_[:, -1, :, :] = -state_[:, -1, :, :]
