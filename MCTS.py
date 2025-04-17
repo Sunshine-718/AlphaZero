@@ -50,12 +50,6 @@ class TreeNode:
             self.parent.update(-leaf_value * discount, discount)
         self.n_visits += 1
         self.Q += (leaf_value - self.Q) / self.n_visits # Q = ((n-1)*Q_old + leaf_value)/n
-    
-    def update_(self, leaf_value, discount):
-        if self.parent:
-            self.parent.update(leaf_value * discount, discount)
-        self.n_visits += 1
-        self.Q += (leaf_value - self.Q) / self.n_visits # Q = ((n-1)*Q_old + leaf_value)/n
 
     def PUCT(self, c_puct):
         if self.parent is not None and self.parent.is_root() and not self.deterministic:
@@ -87,9 +81,7 @@ class MCTS:
 
     def select_leaf_node(self, env):
         node = self.root
-        while True:
-            if node.is_leaf():
-                break
+        while not node.is_leaf():
             action, node = node.select(self.c_puct)
             env.step(action)
         return node

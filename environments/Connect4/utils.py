@@ -8,7 +8,7 @@ from numba import njit
 from copy import deepcopy
 
 
-@njit
+@njit(fastmath=True)
 def board_to_state(board, turn):
     temp = np.zeros((1, 3, board.shape[0], board.shape[1]), dtype=np.float32)
     temp[:, 0] = board == 1
@@ -20,12 +20,12 @@ def board_to_state(board, turn):
     return temp
 
 
-@njit
+@njit(fastmath=True)
 def check_full(board):
     return len(np.where(board == 0)[0]) == 0
 
 
-@njit
+@njit(fastmath=True)
 def check_winner(board):
     rows, cols = board.shape
 

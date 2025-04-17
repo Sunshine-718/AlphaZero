@@ -7,7 +7,6 @@ import numpy as np
 from utils import Elo, explained_var
 from game import Game
 from copy import deepcopy
-from torchsummary import summary
 from environments import load
 from policy_value_net import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
@@ -95,15 +94,8 @@ class TrainPipeline:
         current = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
         best = f'{self.params}/{self.name}_{self.net.name()}_best.pt'
         writer = SummaryWriter(filename_suffix=self.name)
-        # fake_input_shape = (self.module.network_config['in_dim'],
-        #                     self.module.env_config['row'],
-        #                     self.module.env_config['col'])
-        # summary(self.net, fake_input_shape, device=self.device)
-        # fake_input = torch.randn(1, *fake_input_shape).to(self.device)
-        # writer.add_graph(self.policy_value_net.net, fake_input)
         writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': self.init_elo,
                                           f'MCTS_{self.pure_mcts_n_playout}': 1500}, 0)
-        # preparing = True
         i = 0
         best_counter = 0
         while True:

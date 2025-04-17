@@ -3,9 +3,10 @@
 # Written by: Sunshine
 # Created on: 10/Aug/2024  23:47
 import numpy as np
-from MCTS import MCTS, MCTS_AZ
 from abc import abstractmethod, ABC
 from utils import softmax, policy_value_fn
+# from mcts_cython import MCTS, MCTS_AZ
+from MCTS import MCTS, MCTS_AZ
 
 
 class Player(ABC):
@@ -32,6 +33,7 @@ class NetworkPlayer(Player):
         super().__init__()
         self.net = net
         self.deterministic = deterministic
+        self.value = None
 
     def train(self):
         self.net.train()
@@ -40,7 +42,7 @@ class NetworkPlayer(Player):
         self.net.eval()
 
     def get_action(self, env, *args, **kwargs):
-        action_probs, _ = self.net(env)
+        action_probs, self.value = self.net(env)
         if self.deterministic:
             return max(action_probs, key=lambda x: x[1])[0], None
         else:
@@ -65,14 +67,9 @@ class MCTSPlayer(Player):
         self.mcts.update_with_move(-1)
 
     def get_action(self, env, discount=1):
-        valid = env.valid_move()
-        if len(valid) > 0:
-            action = self.mcts.get_action(env, discount)
-            self.reset_player()
-            return action
-        else:
-            print('Warning: the board is full')
-
+        action = self.mcts.get_action(env, discount)
+        self.reset_player()
+        return action
 
 class AlphaZeroPlayer(Player):
     def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0):
@@ -91,23 +88,19 @@ class AlphaZeroPlayer(Player):
         self.mcts.update_with_move(-1)
 
     def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=1):
-        valid = env.valid_move()
         action_probs = np.zeros((self.n_actions,), dtype=np.float32)
-        if len(valid) > 0:
-            actions, visits = self.mcts.get_action_visits(
-                env, dirichlet_alpha, discount)
-            if temp == 0:
-                probs = np.zeros((len(visits),), dtype=np.float32)
-                probs[np.where(np.array(visits) == max(visits))
-                      ] = 1 / list(visits).count(max(visits))
-            else:
-                probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
-            action = np.random.choice(actions, p=probs)
-            action_probs[list(actions)] = probs
-            if self.is_selfplay:
-                self.mcts.update_with_move(action)
-            else:
-                self.reset_player()
-            return action, action_probs
+        actions, visits = self.mcts.get_action_visits(
+            env, dirichlet_alpha, discount)
+        if temp == 0:
+            probs = np.zeros((len(visits),), dtype=np.float32)
+            probs[np.where(np.array(visits) == max(visits))
+                    ] = 1 / list(visits).count(max(visits))
         else:
-            print('WARNING: the board is full')
+            probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
+        action = np.random.choice(actions, p=probs)
+        action_probs[list(actions)] = probs
+        if self.is_selfplay:
+            self.mcts.update_with_move(action)
+        else:
+            self.reset_player()
+        return action, action_probs

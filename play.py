@@ -22,7 +22,7 @@ parser.add_argument('--model', type=str,
                     default='current', help='Model type')
 parser.add_argument('--network', type=str, default='CNN', help='Network type')
 parser.add_argument('--env', type=str, default='Connect4', help='env name')
-parser.add_argument('--name', type=str, default='AZ', help='Model name')
+parser.add_argument('--name', type=str, default='AZ2', help='Model name')
 
 args = parser.parse_args()
 

@@ -6,7 +6,7 @@
 [`python 3.12`](https://www.python.org)  
 [`torch 2.3.0`](https://pytorch.org)  
 
-## How to install dependencies?
+## Get started
 Run the command lines below in terminal.
 ``` shell
 pip install -r requirements.txt
@@ -15,6 +15,10 @@ Pytorch official website: [click here](https://pytorch.org)
 If you prefer to run this code beyond cuda device, just simply run the code below to install the __CPU version__ of Pytorch.
 ``` shell
 pip install torch
+```  
+Run [`setup.py`](./setup.py) by typing the command below in terminal  
+```
+python setup.py build_ext --inplace  
 ```  
 ## How to play against AlphaZero?
 Type one of the command lines below in terminal:  
