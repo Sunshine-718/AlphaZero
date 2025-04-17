@@ -6,7 +6,7 @@ cimport cython
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef class CEnv:
+cdef class Env:
     cdef object board  # numpy ndarray as object
     cdef int _turn
 
@@ -25,7 +25,7 @@ cdef class CEnv:
         self._turn = 1
 
     cpdef object copy(self):
-        cdef CEnv env_copy = CEnv()
+        cdef Env env_copy = Env()
         env_copy.board = np.copy(self.board)
         env_copy._turn = self._turn
         return env_copy
