@@ -44,7 +44,7 @@ def evaluate_rollout(env, limit=1000):
 def policy_value_fn(env):
     valid = env.valid_move()
     action_probs = np.ones(len(valid)) / len(valid)
-    return list(zip(valid, action_probs)), evaluate_rollout(deepcopy(env))
+    return list(zip(valid, action_probs)), evaluate_rollout(env.copy())
 
 
 def rollout_policy_fn(env):
