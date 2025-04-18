@@ -79,7 +79,7 @@ def inspect(net, board=None):
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
         print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
     print(f'State-value X: {value0: .4f}, State-value O: {value1: .4f}')
-    return probs0, v0, probs1, v1
+    return probs0, value0, probs1, value1
 
 
 def instant_augment(batch):
