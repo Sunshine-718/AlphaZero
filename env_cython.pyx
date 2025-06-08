@@ -108,3 +108,7 @@ cdef class Env:
 
     cpdef int winPlayer(self):
         return self.check_winner()
+    
+    @property
+    def board_view(self):
+        return self.board
