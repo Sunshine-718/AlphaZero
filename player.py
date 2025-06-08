@@ -32,6 +32,7 @@ class NetworkPlayer(Player):
     def __init__(self, net, deterministic=True):
         super().__init__()
         self.net = net
+        self.pv_fn = self.net
         self.deterministic = deterministic
         self.value = None
 
@@ -43,18 +44,39 @@ class NetworkPlayer(Player):
 
     def get_action(self, env, *args, **kwargs):
         action_probs, self.value = self.net(env)
+        actions, probs = list(zip(*action_probs))
+        probs = np.array(probs, dtype=np.float32)
+        probs /= probs.sum()
         if self.deterministic:
-            return max(action_probs, key=lambda x: x[1])[0], None
+            action = actions[np.argmax(probs)]
         else:
-            actions, probs = list(zip(*action_probs))
-            probs = probs / sum(probs)
-            return np.random.choice(actions, p=probs), None
+            action = np.random.choice(actions, p=probs)
+
+        full_probs = np.zeros(self.net.n_actions, dtype=np.float32)
+        for a, p in action_probs:
+            full_probs[a] = p
+        return action, full_probs
 
 
 class Human(Player):
-    def get_action(self, *args, **kwargs):
+    def __init__(self, policy_net=None):
+        super().__init__()
+        self.policy_net = policy_net
+
+    def get_action(self, env, *args, **kwargs):
+        if self.policy_net is not None:
+            try:
+                action_probs, value = self.policy_net(env)
+                best_action = max(action_probs, key=lambda x: x[1])[0]
+                print(f'⭐️ Recommended Action: {best_action} (Value: {value:+.4f})')
+                print("Action probabilities:")
+                for act, prob in action_probs:
+                    print(f'  Action {act}: {prob * 100:5.2f}%')
+            except Exception as e:
+                print('[Warning] Failed to provide action recommendation:', e)
         move = int(input('Your move: '))
         return move, None
+
 
 
 class MCTSPlayer(Player):
@@ -74,6 +96,7 @@ class MCTSPlayer(Player):
 class AlphaZeroPlayer(Player):
     def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0):
         super().__init__()
+        self.pv_fn = policy_value_fn
         self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
         self.is_selfplay = is_selfplay
         self.n_actions = policy_value_fn.n_actions

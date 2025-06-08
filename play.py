@@ -9,23 +9,21 @@ from game import Game
 from policy_value_net import PolicyValueNet
 from player import Human, AlphaZeroPlayer, NetworkPlayer
 
-
-parser = argparse.ArgumentParser(
-    description='Play connect four against AlphaZero!')
+parser = argparse.ArgumentParser(description='Play connect four against AlphaZero!')
 parser.add_argument('-x', action='store_true', help='Play as X')
 parser.add_argument('-o', action='store_true', help='Play as O')
 parser.add_argument('-n', type=int, default=500,
                     help='Number of simulations before AlphaZero make an action')
 parser.add_argument('--self_play', action='store_true',
                     help='AlphaZero play against itself')
-parser.add_argument('--model', type=str,
-                    default='current', help='Model type')
+parser.add_argument('--model', type=str, default='current', help='Model type')
 parser.add_argument('--network', type=str, default='CNN', help='Network type')
 parser.add_argument('--env', type=str, default='Connect4', help='env name')
 parser.add_argument('--name', type=str, default='AZ2', help='Model name')
+parser.add_argument('--show_nn', action='store_true',
+                    help='Show NN output (recommended action, probs, value)')
 
 args = parser.parse_args()
-
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if __name__ == '__main__':
@@ -34,29 +32,39 @@ if __name__ == '__main__':
     try:
         env = module.Env()
         game = Game(env)
+
         if args.network == 'CNN':
             net = module.CNN(0, device=device)
         elif args.network == 'ViT':
             net = module.ViT(0, device=device)
+        else:
+            raise ValueError(f"Unknown network type: {args.network}")
+
         policy_value_net = PolicyValueNet(
-            net, config['discount'], f'./params/{args.name}_{args.env}_{args.network}_{args.model}.pt')
+            net,
+            config['discount'],
+            f'./params/{args.name}_{args.env}_{args.network}_{args.model}.pt'
+        )
+
         if args.n == 0:
             az_player = NetworkPlayer(policy_value_net)
         else:
             az_player = AlphaZeroPlayer(policy_value_net, c_puct=config['c_puct'],
                                         n_playout=args.n, is_selfplay=0)
         az_player.eval()
-        human = Human()
+
+        human = Human(policy_net=az_player.pv_fn if args.show_nn else None)
+        
         if args.x and args.o:
-            game.start_play(human, human, config['discount'], show=1)
+            game.start_play(human, human, config['discount'], show=1, show_nn=int(args.show_nn))
         elif args.x:
-            game.start_play(human, az_player, config['discount'], show=1)
+            game.start_play(human, az_player, config['discount'], show=1, show_nn=int(args.show_nn))
         elif args.o:
-            game.start_play(az_player, human, config['discount'], show=1)
+            game.start_play(az_player, human, config['discount'], show=1, show_nn=int(args.show_nn))
         elif args.self_play and not (args.x or args.o):
-            game.start_play(az_player, az_player, config['discount'], show=1)
+            game.start_play(az_player, az_player, config['discount'], show=1, show_nn=int(args.show_nn))
         else:
-            raise AttributeError('Invalid argument(s).\n'
-                                 "Type 'python3 ./play.py -h' for help")
+            raise AttributeError("Invalid argument(s).\nType 'python3 ./play.py -h' for help")
     except KeyboardInterrupt:
         print('\n\rquit')
+        

@@ -52,7 +52,7 @@ class TrainPipeline:
         self.update_best_player()
         self.elo = Elo(self.init_elo, 1500)
 
-    def collect_selfplay_data(self, n_games=1):
+    def data_collector(self, n_games=1):
         self.policy_value_net.eval()
         self.az_player.train()
         episode_len = []
@@ -99,7 +99,7 @@ class TrainPipeline:
         i = 0
         best_counter = 0
         while True:
-            self.collect_selfplay_data(self.play_batch_size)
+            self.data_collector(self.play_batch_size)
             p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), \
                 float('inf'), float('inf')
             i += 1
