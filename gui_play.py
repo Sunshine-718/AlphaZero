@@ -20,7 +20,7 @@ CONTROL_PANEL_Y = 20
 CONTROL_PANEL_WIDTH = 200
 CONTROL_PANEL_HEIGHT = 400
 
-WINDOW_TITLE = "Connect4 with AlphaZero"
+WINDOW_TITLE = "AlphaZero Connect4 GUI"
 PARAMS_PATH_FMT = './params/{model_name}_{env_name}_{network}_{model_type}.pt'
 
 # 颜色定义（1 为红，-1 为黄）
