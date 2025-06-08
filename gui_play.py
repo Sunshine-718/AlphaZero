@@ -20,14 +20,22 @@ CONTROL_PANEL_Y = 20
 CONTROL_PANEL_WIDTH = 200
 CONTROL_PANEL_HEIGHT = 400
 
-WINDOW_TITLE = "AlphaZero Connect4 GUI"
+WINDOW_TITLE = "Connect4 with AlphaZero"
 PARAMS_PATH_FMT = './params/{model_name}_{env_name}_{network}_{model_type}.pt'
+
+# 颜色定义（1 为红，-1 为黄）
+from PyQt5.QtGui import QColor
+COLOR_MAP = {
+    1: QColor(255, 0, 0),      # 红色
+    -1: QColor(255, 255, 0)    # 黄色
+}
 # ================================================
 
 import sys
 import time
+import numpy as np
 from PyQt5.QtWidgets import QApplication, QWidget, QMessageBox, QVBoxLayout, QLabel, QSpinBox, QComboBox, QPushButton, QCheckBox
-from PyQt5.QtGui import QPainter, QColor, QFont
+from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt, QTimer
 import torch
 from environments import load
@@ -76,7 +84,7 @@ class Connect4GUI(QWidget):
 
         self.network_label = QLabel("网络结构:")
         self.network_choice = QComboBox()
-        self.network_choice.addItems(["CNN"])
+        self.network_choice.addItems(["CNN", "ViT"])
         self.network_choice.setCurrentText(self.network)
         self.network_choice.currentIndexChanged.connect(lambda _: self.reload_timer.start(500))
         self.layout.addWidget(self.network_label)
@@ -126,7 +134,6 @@ class Connect4GUI(QWidget):
         self.current_player = [None, self.human, self.az_player]
         self.cell_size = CELL_SIZE
         self.margin = MARGIN
-        # 窗口宽高可控
         self.setFixedSize(
             self.cell_size * 7 + self.margin * 2 + CONTROL_PANEL_WIDTH, 
             self.cell_size * 6 + self.margin * 2 + 60
@@ -220,9 +227,9 @@ class Connect4GUI(QWidget):
                 center_x = self.margin + c * self.cell_size + self.cell_size // 2
                 center_y = self.margin + r * self.cell_size + self.cell_size // 2
                 if board[r][c] == 1:
-                    qp.setBrush(QColor(255, 0, 0))
+                    qp.setBrush(COLOR_MAP[1])
                 elif board[r][c] == -1:
-                    qp.setBrush(QColor(255, 255, 0))
+                    qp.setBrush(COLOR_MAP[-1])
                 else:
                     qp.setBrush(QColor(255, 255, 255))
                 qp.drawEllipse(center_x - diameter // 2, center_y - diameter // 2, diameter, diameter)
@@ -253,7 +260,8 @@ class Connect4GUI(QWidget):
                 row = self.find_drop_row(col)
                 if row != -1:
                     self.last_move = (row, col)
-                    self.start_animation(row, col, QColor(255, 0, 0), lambda: self.after_move(col))
+                    # 使用当前玩家方颜色
+                    self.start_animation(row, col, COLOR_MAP[self.player_color], lambda: self.after_move(col))
 
     def ai_move(self):
         if self.animating:
@@ -266,7 +274,7 @@ class Connect4GUI(QWidget):
         row = self.find_drop_row(action)
         if row != -1:
             self.last_move = (row, action)
-            self.start_animation(row, action, QColor(255, 255, 0), lambda: self.after_move(action))
+            self.start_animation(row, action, COLOR_MAP[-self.player_color], lambda: self.after_move(action))
 
     def after_move(self, col):
         self.env.step(col)
