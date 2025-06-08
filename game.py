@@ -17,7 +17,7 @@ class Game:
         while True:
             current_turn = self.env.turn
             player = players[current_turn]
-            action, probs, *_ = player.get_action(self.env, discount=discount)
+            action, probs = player.get_action(self.env, discount=discount)
             prev_env = self.env.copy()
             self.env.step(action)
             if show:
@@ -52,7 +52,6 @@ class Game:
     def start_self_play(self, player, temp=1, first_n_steps=5, show=0, discount=0.99, dirichlet_alpha=0.3):
         self.env.reset()
         states, mcts_probs, current_players, next_states, masks = [], [], [], [], []
-        # values = []
         steps = 0
         while True:
             if steps < first_n_steps:
@@ -64,7 +63,6 @@ class Game:
             steps += 1
             states.append(self.env.current_state())
             masks.append(self.env.valid_mask())
-            # values.append(v_t)
             mcts_probs.append(probs)
             current_players.append(self.env.turn)
             self.env.step(action)
@@ -88,5 +86,3 @@ class Game:
                 dones = [False for _ in range(len(current_players))]
                 dones[-1] = True
                 return winner, zip(states, mcts_probs, winner_z, next_states, dones, masks)
-                # return winner, zip(states, mcts_probs, values, next_states, dones, masks)
-            

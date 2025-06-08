@@ -28,6 +28,6 @@ class Base(ABC, nn.Module):
                 print('Load parameters successfully!')
             except Exception as e:
                 print(f'Failed to load parameters.\n{e}')
-                # input('Confirm to ramdomly initialize parameters.')
-                # self.weight_init()
+                input('Confirm to ramdomly initialize parameters.')
+                self.weight_init()
                 

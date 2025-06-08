@@ -67,18 +67,18 @@ def inspect(net, board=None):
     with torch.no_grad():
         state0 = torch.from_numpy(board_to_state(
             board, 1)).float().to(net.device)
-        p0, _, mu0, sigma0 = net(state0)
+        p0, v0 = net(state0)
         probs0 = torch.exp(p0).detach().cpu().numpy().flatten()
-        value0 = np.tanh(mu0.item())
+        value0 = np.tanh(v0.item())
         board[5, 3] = 1
         state1 = torch.from_numpy(board_to_state(
             board, -1)).float().to(net.device)
-        p1, _, mu1, sigma1 = net(state1)
+        p1, v1 = net(state1)
         probs1 = torch.exp(p1).detach().cpu().numpy().flatten()
-        value1 = np.tanh(mu1.item())
+        value1 = np.tanh(v1.item())
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
         print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
-    print(f'State-value X: {value0: .4f}, sigma: {sigma0.item(): .4f}\nState-value O: {value1: .4f}, sigma: {sigma1.item(): .4f}')
+    print(f'State-value X: {value0: .4f}, State-value O: {value1: .4f}')
     return probs0, value0, probs1, value1
 
 

@@ -9,7 +9,6 @@ import torch.nn.functional as F
 from torch.optim import AdamW
 from einops import rearrange
 from ..NetworkBase import Base
-from torch.distributions import Normal
 
 
 class CNN(Base):
@@ -32,13 +31,9 @@ class CNN(Base):
                                         nn.BatchNorm1d(h_dim * 4),
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 4, 1))
-        self.sigma = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4, bias=False),
-                                        nn.BatchNorm1d(h_dim * 4),
-                                        nn.SiLU(True),
-                                        nn.Linear(h_dim * 4, 1))
         self.device = device
         self.n_actions = out_dim
-        self.opt = AdamW(self.parameters(), lr=lr, weight_decay=0.01)
+        self.opt = AdamW(self.parameters(), lr=lr, weight_decay=0.1)
         self.weight_init()
         self.to(self.device)
 
@@ -51,9 +46,7 @@ class CNN(Base):
         if mask is not None:
             prob_logit.masked_fill_(~mask, -float('inf'))
         log_prob = F.log_softmax(prob_logit, dim=-1)
-        mu = self.value_head(hidden)
-        sigma = self.sigma(hidden).exp()
-        return log_prob, Normal(mu, sigma), mu, sigma
+        return log_prob, self.value_head(hidden)
 
 
 class CNN_old(Base):
@@ -93,7 +86,7 @@ class CNN_old(Base):
                                         nn.Linear(h_dim * 4, 1))
         self.device = device
         self.n_actions = out_dim
-        self.opt = AdamW(self.parameters(), lr=lr, weight_decay=0.01)
+        self.opt = AdamW(self.parameters(), lr=lr, weight_decay=0.1)
         self.weight_init()
         self.to(self.device)
 
