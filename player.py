@@ -122,8 +122,9 @@ class AlphaZeroPlayer(Player):
             probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
         action = np.random.choice(actions, p=probs)
         action_probs[list(actions)] = probs
+        # v_target = self.mcts.greedy_backup_value(env.copy(), discount)
         if self.is_selfplay:
             self.mcts.update_with_move(action)
         else:
             self.reset_player()
-        return action, action_probs
+        return action, action_probs#, v_target
