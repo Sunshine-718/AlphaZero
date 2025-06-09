@@ -5,3 +5,4 @@ tensorboard
 Cython
 einops
 pyqt5
+torch-tb-profiler
