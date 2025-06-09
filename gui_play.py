@@ -73,6 +73,10 @@ class Connect4GUI(QWidget):
         self.control_panel = QWidget(self)
         self.layout = QVBoxLayout(self.control_panel)
 
+        # 新增：胜负信息标签，始终位于顶部
+        self.result_label = QLabel("")
+        self.layout.insertWidget(0, self.result_label)
+
         self.n_playout_label = QLabel("模拟次数 (n_playout):")
         self.n_playout_input = QSpinBox()
         self.n_playout_input.setMinimum(N_PLAYOUT_MIN)
@@ -175,6 +179,7 @@ class Connect4GUI(QWidget):
         self.last_move = None
         self.ai_thinking_time = -1
         self.thinking_time_label.setText("AI 思考时间: -")
+        self.result_label.setText("")  # 新增：每次开局清空胜负提示
         self.update_recommendation()
         self.update()
         if self.env.turn == -1 * self.player_color:
@@ -260,7 +265,6 @@ class Connect4GUI(QWidget):
                 row = self.find_drop_row(col)
                 if row != -1:
                     self.last_move = (row, col)
-                    # 使用当前玩家方颜色
                     self.start_animation(row, col, COLOR_MAP[self.player_color], lambda: self.after_move(col))
 
     def ai_move(self):
@@ -311,15 +315,15 @@ class Connect4GUI(QWidget):
             if self.env.turn == -1 * self.player_color and not self.env.done():
                 self.ai_move()
 
+    # 只在顶部显示胜负，不再弹窗
     def show_result(self):
         winner = self.env.winPlayer()
         if winner == self.player_color:
-            QMessageBox.information(self, "Game Over", "You win! Click to restart.")
+            self.result_label.setText("你赢了！点击重新开始。")
         elif winner == -self.player_color:
-            QMessageBox.information(self, "Game Over", "AlphaZero wins! Click to restart.")
+            self.result_label.setText("AlphaZero 赢了！点击重新开始。")
         else:
-            QMessageBox.information(self, "Game Over", "Draw! Click to restart.")
-        self.start_game()
+            self.result_label.setText("平局！点击重新开始。")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
