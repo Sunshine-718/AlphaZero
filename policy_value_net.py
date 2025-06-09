@@ -25,7 +25,7 @@ class PolicyValueNet:
         with torch.no_grad():
             # log_p, value_logit = self.net(state, mask)
             log_p, dist, *_ = self.net(state, mask)
-            value_logit = dist.sample()
+            value_logit = dist.mean
             probs = np.exp(log_p.cpu().numpy())
             value = np.tanh(value_logit.cpu().numpy())
         return probs, value
@@ -49,7 +49,7 @@ class PolicyValueNet:
         state_[:, -1, :, :] = -state_[:, -1, :, :]
         self.opt.zero_grad()
         log_p_pred, dist, mu, sigma = self.net(state)
-        _, dist_, *_ = self.net(state_)
+        _, dist_, mu_, sigma_ = self.net(state_)
         # v_loss = F.smooth_l1_loss(torch.tanh(value_logit), value)
         # v_loss += F.smooth_l1_loss(torch.tanh(value_logit_), -value)
         v_loss = -dist.log_prob(value).mean()
@@ -58,7 +58,9 @@ class PolicyValueNet:
         # 计算 KL 散度正则化项
         prior = Normal(torch.zeros_like(mu), torch.ones_like(sigma))
         kl_loss = kl_divergence(dist, prior).mean()
-        loss = p_loss + v_loss + 1 * kl_loss
+        prior_ = Normal(torch.zeros_like(mu_), torch.ones_like(sigma_))
+        kl_loss_ += kl_divergence(dist_, prior_).mean()
+        loss = p_loss + v_loss + 1 * kl_loss + 1 * kl_loss_
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
         self.opt.step()
