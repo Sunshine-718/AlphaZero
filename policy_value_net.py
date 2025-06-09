@@ -59,8 +59,8 @@ class PolicyValueNet:
         prior = Normal(torch.zeros_like(mu), torch.ones_like(sigma))
         kl_loss = kl_divergence(dist, prior).mean()
         prior_ = Normal(torch.zeros_like(mu_), torch.ones_like(sigma_))
-        kl_loss_ += kl_divergence(dist_, prior_).mean()
-        loss = p_loss + v_loss + 1 * kl_loss + 1 * kl_loss_
+        kl_loss += kl_divergence(dist_, prior_).mean()
+        loss = p_loss + v_loss + 1 * kl_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
         self.opt.step()

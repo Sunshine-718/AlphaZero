@@ -116,8 +116,7 @@ class AlphaZeroPlayer(Player):
             env, dirichlet_alpha, discount)
         if temp == 0:
             probs = np.zeros((len(visits),), dtype=np.float32)
-            probs[np.where(np.array(visits) == max(visits))
-                    ] = 1 / list(visits).count(max(visits))
+            probs[np.where(np.array(visits) == max(visits))] = 1 / list(visits).count(max(visits))
         else:
             probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
         action = np.random.choice(actions, p=probs)
