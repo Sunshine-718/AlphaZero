@@ -27,6 +27,6 @@ class Base(ABC, nn.Module):
                 self.load_state_dict(torch.load(path, map_location=self.device))
             except Exception as e:
                 print(f'Failed to load parameters.\n{e}')
-                input('Confirm to ramdomly initialize parameters.')
-                self.weight_init()
+                # input('Confirm to ramdomly initialize parameters.')
+                # self.weight_init()
                 

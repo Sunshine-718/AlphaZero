@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from copy import deepcopy
+from torch.distributions import Normal, kl_divergence
 
 
 class PolicyValueNet:
@@ -22,7 +23,9 @@ class PolicyValueNet:
     def policy_value(self, state, mask=None):
         self.net.eval()
         with torch.no_grad():
-            log_p, value_logit = self.net(state, mask)
+            # log_p, value_logit = self.net(state, mask)
+            log_p, dist, *_ = self.net(state, mask)
+            value_logit = dist.sample()
             probs = np.exp(log_p.cpu().numpy())
             value = np.tanh(value_logit.cpu().numpy())
         return probs, value
@@ -45,12 +48,17 @@ class PolicyValueNet:
         state_ = deepcopy(state)
         state_[:, -1, :, :] = -state_[:, -1, :, :]
         self.opt.zero_grad()
-        log_p_pred, value_logit = self.net(state)
-        _, value_logit_ = self.net(state_)
-        v_loss = F.smooth_l1_loss(torch.tanh(value_logit), value)
-        v_loss += F.smooth_l1_loss(torch.tanh(value_logit_), -value)
+        log_p_pred, dist, mu, sigma = self.net(state)
+        _, dist_, *_ = self.net(state_)
+        # v_loss = F.smooth_l1_loss(torch.tanh(value_logit), value)
+        # v_loss += F.smooth_l1_loss(torch.tanh(value_logit_), -value)
+        v_loss = -dist.log_prob(value).mean()
+        v_loss += -dist_.log_prob(-value).mean()
         p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
-        loss = p_loss + v_loss
+        # 计算 KL 散度正则化项
+        prior = Normal(torch.zeros_like(mu), torch.ones_like(sigma))
+        kl_loss = kl_divergence(dist, prior).mean()
+        loss = p_loss + v_loss + 1 * kl_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
         self.opt.step()

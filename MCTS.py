@@ -132,3 +132,18 @@ class MCTS_AZ(MCTS):
                       for action, node in self.root.children.items()]
         actions, visits = zip(*act_visits)
         return actions, visits
+    
+    def greedy_backup_value(self, env, discount=1.0):
+        node = self.root
+        player_turn = env.turn
+        while not node.is_leaf():
+            best_action = max(node.children.items(), key=lambda kv: kv[1].n_visits)[0]
+            env.step(best_action)
+            node  = node.children[best_action]
+
+        if env.done():
+            winner = env.winPlayer()
+            leaf_value = 0 if winner == 0 else (1 if winner == player_turn else -1)
+        else:
+            _, leaf_value = self.policy(env)
+        return float(leaf_value * discount)
