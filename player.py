@@ -78,7 +78,6 @@ class Human(Player):
         return move, None
 
 
-
 class MCTSPlayer(Player):
     def __init__(self, c_puct=4, n_playout=2000, num_worker=1):
         super().__init__()

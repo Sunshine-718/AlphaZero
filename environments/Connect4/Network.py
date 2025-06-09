@@ -9,11 +9,10 @@ import torch.nn.functional as F
 from torch.optim import AdamW
 from einops import rearrange
 from ..NetworkBase import Base
-from torch.distributions import Normal
 
 
 class CNN(Base):
-    def __init__(self, lr, in_dim=3, h_dim=64, out_dim=7, device='cpu'):
+    def __init__(self, lr, in_dim=3, h_dim=64, out_dim=7, num_quantiles=51, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2), bias=False),
                                     nn.BatchNorm2d(h_dim),
@@ -31,16 +30,13 @@ class CNN(Base):
         self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4, bias=False),
                                         nn.BatchNorm1d(h_dim * 4),
                                         nn.SiLU(True),
-                                        nn.Linear(h_dim * 4, 1))
-        self.sigma = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4, bias=False),
-                                        nn.BatchNorm1d(h_dim * 4),
-                                        nn.SiLU(True),
-                                        nn.Linear(h_dim * 4, 1))
+                                        nn.Linear(h_dim * 4, num_quantiles))
         self.device = device
         self.n_actions = out_dim
         self.opt = AdamW(self.parameters(), lr=lr, weight_decay=0.01)
         self.weight_init()
         self.to(self.device)
+        self.num_quantiles = num_quantiles
 
     def name(self):
         return 'CNN'
@@ -51,9 +47,8 @@ class CNN(Base):
         if mask is not None:
             prob_logit.masked_fill_(~mask, -float('inf'))
         log_prob = F.log_softmax(prob_logit, dim=-1)
-        mu = self.value_head(hidden)
-        sigma = self.sigma(hidden).exp()
-        return log_prob, Normal(mu, sigma), mu, sigma
+        value = self.value_head(hidden)
+        return log_prob, value
 
 
 class CNN_old(Base):

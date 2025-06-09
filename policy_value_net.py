@@ -6,7 +6,16 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from copy import deepcopy
-from torch.distributions import Normal, kl_divergence
+
+
+def quantile_huber_loss(pred, target, tau, kappa=1.0):
+    assert pred.shape[1] == tau.shape[0], "pred and tau must have compatible shapes"
+    target = target.expand_as(pred)
+    diff = target - pred
+    huber = torch.where(diff.abs() <= kappa, 0.5 * diff.pow(2), kappa * (diff.abs() - 0.5 * kappa))
+    tau = tau.view(1, -1)
+    loss = torch.abs(tau - (diff.detach() < 0).float()) * huber
+    return loss.mean()
 
 
 class PolicyValueNet:
@@ -17,15 +26,20 @@ class PolicyValueNet:
         self.discount = discount
         self.device = self.net.device
         self.n_actions = net.n_actions
+        if hasattr(self.net, 'num_quantiles'):
+            self.num_quantiles = net.num_quantiles
+            self.tau = torch.linspace(0.5 / self.num_quantiles, 1 - 0.5 / self.num_quantiles, self.num_quantiles).to(self.device)
+        else:
+            self.num_quantiles = None
+            self.tau = None
         if params:
             self.net.load(params)
 
     def policy_value(self, state, mask=None):
         self.net.eval()
         with torch.no_grad():
-            # log_p, value_logit = self.net(state, mask)
-            log_p, dist, *_ = self.net(state, mask)
-            value_logit = dist.mean
+            log_p, value_quantile = self.net(state, mask)
+            value_logit = value_quantile.mean(dim=-1)
             probs = np.exp(log_p.cpu().numpy())
             value = np.tanh(value_logit.cpu().numpy())
         return probs, value
@@ -48,19 +62,12 @@ class PolicyValueNet:
         state_ = deepcopy(state)
         state_[:, -1, :, :] = -state_[:, -1, :, :]
         self.opt.zero_grad()
-        log_p_pred, dist, mu, sigma = self.net(state)
-        _, dist_, mu_, sigma_ = self.net(state_)
-        # v_loss = F.smooth_l1_loss(torch.tanh(value_logit), value)
-        # v_loss += F.smooth_l1_loss(torch.tanh(value_logit_), -value)
-        v_loss = -dist.log_prob(value).mean()
-        v_loss += -dist_.log_prob(-value).mean()
+        log_p_pred, value_quantiles = self.net(state)
+        _, value_quantiles_ = self.net(state_)
+        v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
+        v_loss += quantile_huber_loss(torch.tanh(value_quantiles_), -value, self.tau)
         p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
-        # 计算 KL 散度正则化项
-        prior = Normal(torch.zeros_like(mu), torch.ones_like(sigma))
-        kl_loss = kl_divergence(dist, prior).mean()
-        prior_ = Normal(torch.zeros_like(mu_), torch.ones_like(sigma_))
-        kl_loss += kl_divergence(dist_, prior_).mean()
-        loss = p_loss + v_loss + 1 * kl_loss
+        loss = p_loss + v_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
         self.opt.step()
