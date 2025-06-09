@@ -33,8 +33,7 @@ COLOR_MAP = {
 
 import sys
 import time
-import numpy as np
-from PyQt5.QtWidgets import QApplication, QWidget, QMessageBox, QVBoxLayout, QLabel, QSpinBox, QComboBox, QPushButton, QCheckBox
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QSpinBox, QComboBox, QPushButton, QCheckBox
 from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt, QTimer
 import torch
