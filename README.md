@@ -21,6 +21,7 @@ Run [`setup.py`](./setup.py) by typing the command below in terminal
 python setup.py build_ext --inplace  
 ```  
 ## How to play against AlphaZero?
+### 1.Play in terminal  
 Type one of the command lines below in terminal:  
 ``` shell
 python3 play.py --env Connect4 -x    # play as X
@@ -38,6 +39,8 @@ Optional argument:
 `--self_play`: AlphaZero will play against itself if using this option.  
 `--model`: current model or best model, default: `current`.  
 `--name`: model name, default: `AlphaZero`.  
+### 2. Play in GUI  
+run `gui_play.py` to play Connect4 with AlphaZero in GUI.  
 ## How to train your own AlphaZero?
 Open [`train.ipynb`](./train.ipynb) and run it __after backing up the latest parameter files__.  
 __*IMPORTANT!!!*__:  
