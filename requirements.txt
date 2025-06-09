@@ -4,3 +4,4 @@ tqdm
 tensorboard
 Cython
 einops
+pyqt5
