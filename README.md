@@ -21,7 +21,7 @@ Run [`setup.py`](./setup.py) by typing the command below in terminal
 python setup.py build_ext --inplace  
 ```  
 ## How to play against AlphaZero?
-### 1.Play in terminal  
+### 1. Play in terminal  
 Type one of the command lines below in terminal:  
 ``` shell
 python3 play.py --env Connect4 -x    # play as X
