@@ -256,15 +256,34 @@ class Connect4GUI(QWidget):
             qp.drawEllipse(center_x - diameter // 2, center_y - diameter // 2, diameter, diameter)
 
     def mousePressEvent(self, event):
+        """仅在棋盘区域接收点击；控制面板或空白处点击无效。"""
+        # 动画或对局结束时忽略
         if self.env.done() or self.animating:
             return
+
+        # 计算棋盘的像素边界
+        x, y = event.x(), event.y()
+        board_left   = self.margin
+        board_top    = self.margin
+        board_right  = board_left + self.cell_size * 7
+        board_bottom = board_top  + self.cell_size * 6
+
+        # 若点击不在棋盘矩形内，直接忽略
+        if not (board_left <= x < board_right and board_top <= y < board_bottom):
+            return
+
+        # 以下保持原有落子逻辑
         if self.env.turn == self.player_color:
-            col = (event.x() - self.margin) // self.cell_size
-            if 0 <= col < 7 and col in self.env.valid_move():
+            col = (x - self.margin) // self.cell_size
+            if col in self.env.valid_move():
                 row = self.find_drop_row(col)
                 if row != -1:
                     self.last_move = (row, col)
-                    self.start_animation(row, col, COLOR_MAP[self.player_color], lambda: self.after_move(col))
+                    self.start_animation(
+                        row, col,
+                        COLOR_MAP[self.player_color],
+                        lambda: self.after_move(col)
+                    )
 
     def ai_move(self):
         if self.animating:
