@@ -189,10 +189,15 @@ class Connect4GUI(QWidget):
         self.update()
 
     def update_recommendation(self):
+        if not self.show_probs:
+            self.recommend_col = None
+            return
         if self.env.turn == self.player_color and not self.env.done() and self.policy_net is not None:
             try:
-                action_probs, _ = self.policy_net(self.env)
-                self.recommend_col = max(action_probs, key=lambda x: x[1])[0]
+                self.az_player.reset_player()
+                actions, vistis = self.az_player.mcts.get_action_visits(self.env, discount=self.env_module.training_config['discount'])
+                self.az_player.reset_player()
+                self.recommend_col = max(actions, key=lambda x: vistis[x])
             except:
                 self.recommend_col = None
         else:
