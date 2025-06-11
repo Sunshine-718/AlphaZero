@@ -117,7 +117,7 @@ class TrainPipeline:
             writer.add_scalar('Metric/Entropy', entropy, i)
             writer.add_scalar('Metric/Episode length', self.episode_len, i)
 
-            if (i) % 10 != 0:
+            if (i) % 20 != 0:
                 continue
 
             print(f'current self-play batch: {i + 1}')

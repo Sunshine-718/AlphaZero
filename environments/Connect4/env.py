@@ -63,3 +63,19 @@ class Env(Environment):
             print(' '.join(i))
         print(' '.join(map(str, range(7))))
         print('=' * 20)
+
+    def flip(self, inplace: bool = False):
+        target = self if inplace else self.copy()
+        target.board = target.board[:, ::-1]
+        return target
+
+    def flip_action(self, col: int) -> int:
+        return self.board.shape[1] - 1 - col
+
+    def random_flip(self, p: float = 0.5):
+        env_copy = self.copy()
+        flipped = False
+        if np.random.rand() < p:
+            env_copy.board = env_copy.board[:, ::-1]
+            flipped = True
+        return env_copy, flipped
