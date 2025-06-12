@@ -1,17 +1,38 @@
 # cython: language_level=3
 # distutils: language = c++
+
 import numpy as np
 cimport numpy as np
 cimport cython
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef class Env:
     # ===== 私有成员 =====
-    cdef np.ndarray _board          # 6×7 float32 ndarray
-    cdef int _turn                  # 1 / -1 表示当前落子方
+    cdef np.ndarray _board          # 6×7 float32 ndarray（普通对象，便于 Pickle）
+    cdef int        _turn           # 1 / -1 表示当前落子方
 
-    # ===== 只读属性：外部可安全访问棋盘 =====
+    # ===== Pickle 协议 =====
+    def __getstate__(self):
+        """
+        在序列化（pickle.dumps / multiprocessing）时调用。
+        只返回纯 Python 对象：棋盘副本 + 当前执子方。
+        """
+        return (np.asarray(self._board, dtype=np.float32).copy(),
+                int(self._turn))
+
+    def __setstate__(self, state):
+        """
+        反序列化时调用。
+        __cinit__ 已提前跑过，我们只需把内部状态复原。
+        """
+        board, turn = state
+        # 强制 float32，确保与 Cython 运算保持一致
+        self._board = np.asarray(board, dtype=np.float32).copy()
+        self._turn  = int(turn)
+
+    # ===== 只读属性：安全暴露棋盘 =====
     property board:
         def __get__(self):
             # 返回副本，防止外部直接修改内部状态
@@ -48,7 +69,8 @@ cdef class Env:
         -1 → 玩家 -1 获胜
          0 → 未分胜负
         """
-        cdef float[:, :] board = self._board        # memory-view 加速
+        # 在局部获取 typed-memory-view 做快速循环
+        cdef float[:, :] board = self._board
         cdef int rows = board.shape[0]
         cdef int cols = board.shape[1]
         cdef int r, c
@@ -101,7 +123,7 @@ cdef class Env:
         尝试在第 action 列落子。
         成功返回 True，否则 False（列已满）。
         """
-        cdef float[:, :] board = self._board
+        cdef float[:, :] board = self._board   # memory-view
         cdef int row
         for row in range(board.shape[0] - 1, -1, -1):
             if board[row, action] == 0:
@@ -120,8 +142,9 @@ cdef class Env:
         channel 1: 对手棋子
         channel 2: 当前玩家标志 (全 1 或 -1)
         """
-        cdef np.ndarray[np.float32_t, ndim=4] state = np.zeros((1, 3, 6, 7),
-                                                               dtype=np.float32)
+        cdef np.ndarray[np.float32_t, ndim=4] state = np.zeros(
+            (1, 3, 6, 7), dtype=np.float32
+        )
         state[0, 0] = self._board == 1
         state[0, 1] = self._board == -1
         state[0, 2][:, :] = 1 if self._turn == 1 else -1

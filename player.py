@@ -5,8 +5,13 @@
 import numpy as np
 from abc import abstractmethod, ABC
 from utils import softmax, policy_value_fn
-# from mcts_cython import MCTS, MCTS_AZ
-from MCTS import MCTS, MCTS_AZ
+try:
+    from mcts_cython import MCTS, MCTS_AZ, RootParallelMCTS
+    print("[Info] Use Cython-optimised MCTS")
+except ImportError as e:
+    from MCTS import MCTS, MCTS_AZ, RootParallelMCTS
+    print(e)
+    print("[Warning] Falling back to pure-Python MCTS")
 
 
 class Player(ABC):
@@ -93,10 +98,13 @@ class MCTSPlayer(Player):
         return action
 
 class AlphaZeroPlayer(Player):
-    def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0):
+    def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0, num_worker=1):
         super().__init__()
         self.pv_fn = policy_value_fn
-        self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
+        if num_worker == 1:
+            self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
+        else:
+            self.mcts = RootParallelMCTS(policy_value_fn, c_init=c_puct, n_playout=n_playout, num_worker=num_worker)
         self.is_selfplay = is_selfplay
         self.n_actions = policy_value_fn.n_actions
 

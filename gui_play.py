@@ -1,4 +1,8 @@
 # ======= 配置区：所有重要参数在这里集中定义 =======
+import os
+from PyQt5.QtGui import QColor
+
+
 ENV_NAME = 'Connect4'
 NETWORK_DEFAULT = 'CNN'
 MODEL_NAME = 'AZ2'
@@ -6,6 +10,11 @@ MODEL_TYPE_DEFAULT = 'current'
 N_PLAYOUT_DEFAULT = 500
 N_PLAYOUT_MIN = 1
 N_PLAYOUT_MAX = 5000
+
+# 新增：worker 数配置
+NUM_WORKER_DEFAULT = max(1, os.cpu_count() // 2)
+NUM_WORKER_MIN = 1
+NUM_WORKER_MAX = max(1, os.cpu_count())
 
 ANIMATION_INTERVAL_DEFAULT = 40   # ms
 ANIMATION_INTERVAL_MIN = 10
@@ -18,13 +27,12 @@ MARGIN = 40
 CONTROL_PANEL_X = 500
 CONTROL_PANEL_Y = 20
 CONTROL_PANEL_WIDTH = 200
-CONTROL_PANEL_HEIGHT = 400
+CONTROL_PANEL_HEIGHT = 460  # ↑ 高度 +60 以容纳新控件
 
 WINDOW_TITLE = "AlphaZero Connect4 GUI"
 PARAMS_PATH_FMT = './params/{model_name}_{env_name}_{network}_{model_type}.pt'
 
 # 颜色定义（1 为红，-1 为黄）
-from PyQt5.QtGui import QColor
 COLOR_MAP = {
     1: QColor(255, 0, 0),      # 红色
     -1: QColor(255, 255, 0)    # 黄色
@@ -51,6 +59,7 @@ class Connect4GUI(QWidget):
         self.model_name = MODEL_NAME
         self.model_type = MODEL_TYPE_DEFAULT
         self.n_playout = N_PLAYOUT_DEFAULT
+        self.num_worker = NUM_WORKER_DEFAULT  # ← 新增
         self.animation_interval = ANIMATION_INTERVAL_DEFAULT
         self.player_color = PLAYER_COLOR_DEFAULT
         self.last_probs = None
@@ -72,10 +81,11 @@ class Connect4GUI(QWidget):
         self.control_panel = QWidget(self)
         self.layout = QVBoxLayout(self.control_panel)
 
-        # 新增：胜负信息标签，始终位于顶部
+        # 顶部：胜负信息标签
         self.result_label = QLabel("")
         self.layout.insertWidget(0, self.result_label)
 
+        # n_playout 控件
         self.n_playout_label = QLabel("模拟次数 (n_playout):")
         self.n_playout_input = QSpinBox()
         self.n_playout_input.setMinimum(N_PLAYOUT_MIN)
@@ -85,6 +95,17 @@ class Connect4GUI(QWidget):
         self.layout.addWidget(self.n_playout_label)
         self.layout.addWidget(self.n_playout_input)
 
+        # num_worker 控件  ← 新增
+        self.worker_label = QLabel("Workers (num_worker):")
+        self.worker_input = QSpinBox()
+        self.worker_input.setMinimum(NUM_WORKER_MIN)
+        self.worker_input.setMaximum(NUM_WORKER_MAX)
+        self.worker_input.setValue(self.num_worker)
+        self.worker_input.valueChanged.connect(lambda _: self.reload_timer.start(500))
+        self.layout.addWidget(self.worker_label)
+        self.layout.addWidget(self.worker_input)
+
+        # 网络结构选择
         self.network_label = QLabel("网络结构:")
         self.network_choice = QComboBox()
         self.network_choice.addItems(["CNN", "ViT"])
@@ -93,6 +114,7 @@ class Connect4GUI(QWidget):
         self.layout.addWidget(self.network_label)
         self.layout.addWidget(self.network_choice)
 
+        # 模型类型选择
         self.model_type_label = QLabel("模型类型:")
         self.model_type_choice = QComboBox()
         self.model_type_choice.addItems(["current", "best"])
@@ -101,6 +123,7 @@ class Connect4GUI(QWidget):
         self.layout.addWidget(self.model_type_label)
         self.layout.addWidget(self.model_type_choice)
 
+        # 玩家先手选择
         self.player_label = QLabel("选择玩家先手:")
         self.player_choice = QComboBox()
         self.player_choice.addItems(["Human (X)", "AI (X)"])
@@ -108,6 +131,7 @@ class Connect4GUI(QWidget):
         self.layout.addWidget(self.player_label)
         self.layout.addWidget(self.player_choice)
 
+        # 动画速度
         self.speed_label = QLabel("动画速度 (ms):")
         self.speed_input = QSpinBox()
         self.speed_input.setMinimum(ANIMATION_INTERVAL_MIN)
@@ -117,39 +141,51 @@ class Connect4GUI(QWidget):
         self.layout.addWidget(self.speed_label)
         self.layout.addWidget(self.speed_input)
 
+        # 是否显示推荐落子
         self.show_probs_checkbox = QCheckBox("显示推荐落子")
         self.show_probs_checkbox.setChecked(self.show_probs)
         self.show_probs_checkbox.stateChanged.connect(self.toggle_show_probs)
         self.layout.addWidget(self.show_probs_checkbox)
 
+        # 重新开始按钮
         self.reset_button = QPushButton("重新开始")
         self.reset_button.clicked.connect(lambda: (self.auto_reload_model(), self.start_game()))
         self.layout.addWidget(self.reset_button)
 
+        # AI 思考时间
         self.thinking_time_label = QLabel("AI 思考时间: -")
         self.layout.addWidget(self.thinking_time_label)
-        
-        self.control_panel.setGeometry(
-            CONTROL_PANEL_X, CONTROL_PANEL_Y, CONTROL_PANEL_WIDTH, CONTROL_PANEL_HEIGHT
-        )
 
-        self.auto_reload_model()
-        self.current_player = [None, self.human, self.az_player]
+        # 布局与窗口设置
+        self.control_panel.setGeometry(
+            CONTROL_PANEL_X, CONTROL_PANEL_Y,
+            CONTROL_PANEL_WIDTH, CONTROL_PANEL_HEIGHT
+        )
         self.cell_size = CELL_SIZE
         self.margin = MARGIN
         self.setFixedSize(
-            self.cell_size * 7 + self.margin * 2 + CONTROL_PANEL_WIDTH, 
+            self.cell_size * 7 + self.margin * 2 + CONTROL_PANEL_WIDTH,
             self.cell_size * 6 + self.margin * 2 + 60
         )
         self.setWindowTitle(WINDOW_TITLE)
+
+        # 状态变量
         self.animating = False
         self.animation_row = -1
         self.animation_col = -1
         self.animation_color = None
+
+        # 初始化 AlphaZero / Human 玩家
+        self.auto_reload_model()
+        self.current_player = [None, self.human, self.az_player]
+
+        # 开局
         self.start_game()
 
     def auto_reload_model(self):
+        """读取控件当前值，重新加载模型 / Player 对象"""
         self.n_playout = self.n_playout_input.value()
+        self.num_worker = self.worker_input.value()  # ← 新增
         self.network = self.network_choice.currentText()
         self.model_type = self.model_type_choice.currentText()
         self.animation_interval = self.speed_input.value()
@@ -157,10 +193,14 @@ class Connect4GUI(QWidget):
         self.player_color = 1 if self.player_choice.currentText() == "Human (X)" else -1
 
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        net = getattr(self.env_module, self.network)(lr=0, device=device)
+        net_class = getattr(self.env_module, self.network)
+        net = net_class(lr=0, device=device)  # lr=0 → 推理模式
+
         model_path = PARAMS_PATH_FMT.format(
-            model_name=self.model_name, env_name=self.env_name,
-            network=self.network, model_type=self.model_type
+            model_name=self.model_name,
+            env_name=self.env_name,
+            network=self.network,
+            model_type=self.model_type
         )
         self.policy_net = PolicyValueNet(net, self.env_module.training_config['discount'], model_path)
 
@@ -168,7 +208,8 @@ class Connect4GUI(QWidget):
             self.policy_net,
             c_puct=self.env_module.training_config['c_puct'],
             n_playout=self.n_playout,
-            is_selfplay=0
+            is_selfplay=0,
+            num_worker=self.num_worker  # ← 传递
         )
         self.human = Human(self.policy_net)
 
@@ -178,7 +219,7 @@ class Connect4GUI(QWidget):
         self.last_move = None
         self.ai_thinking_time = -1
         self.thinking_time_label.setText("AI 思考时间: -")
-        self.result_label.setText("")  # 新增：每次开局清空胜负提示
+        self.result_label.setText("")
         self.update_recommendation()
         self.update()
         if self.env.turn == -1 * self.player_color:
@@ -348,8 +389,13 @@ class Connect4GUI(QWidget):
         else:
             self.result_label.setText("平局！点击重新开始。")
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
+if __name__ == "__main__":
+    import torch
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
+
+    from PyQt5.QtWidgets import QApplication
+    app = QApplication([])
     gui = Connect4GUI()
     gui.show()
-    sys.exit(app.exec_())
+    app.exec_()
