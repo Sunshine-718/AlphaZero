@@ -64,7 +64,7 @@ class Game:
             steps += 1
             states.append(self.env.current_state())
             masks.append(self.env.valid_mask())
-            values.append(float(player.mcts.root.Q))
+            values.append(float(player.mcts.Q))
             mcts_probs.append(probs)
             current_players.append(self.env.turn)
             self.env.step(action)

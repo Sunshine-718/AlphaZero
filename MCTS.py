@@ -4,7 +4,6 @@
 # Created on: 14/Jul/2024  18:54
 import math
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
 
 
 class TreeNode:
@@ -76,6 +75,10 @@ class MCTS:
         self.c_base = n_playout / 800 * 19652
         self.n_playout = n_playout
         self.random_flip = random_flip
+    
+    @property
+    def Q(self):
+        return self.root.Q
 
     def train(self):
         self.root.train()
@@ -157,47 +160,3 @@ class MCTS_AZ(MCTS):
         else:
             _, leaf_value = self.policy(env)
         return float(leaf_value * discount)
-
-
-class RootParallelMCTS:
-    def __init__(self, policy_value_fn, c_init=1.25, n_playout=100, num_worker=4):
-        assert num_worker >= 1
-        self.policy = policy_value_fn
-        self.num_worker = num_worker
-        sims_per_worker = max(1, n_playout // num_worker)
-        self.workers = [
-            MCTS_AZ(policy_value_fn, c_init, n_playout=sims_per_worker)
-            for _ in range(num_worker)
-        ]
-        self.n_actions = policy_value_fn.n_actions
-    
-    def train(self):
-        for worker in self.workers:
-            worker.train()
-    
-    def eval(self):
-        for worker in self.workers:
-            worker.eval()
-
-    def update_with_move(self, last_move):
-        for worker in self.workers:
-            worker.update_with_move(last_move)
-    
-    def get_action_visits(self, env, dirichlet_alpha=0.3, discount=1):
-        env_copies = [env.copy() for _ in range(self.num_worker)]
-        def _run(worker, env_copy):
-            return worker.get_action_visits(env_copy, dirichlet_alpha, discount)
-        with ThreadPoolExecutor(max_workers=self.num_worker) as executor:
-            results = [executor.submit(_run, w, env_copies[i]) for i, w in enumerate(self.workers)]
-            results = [r.result() for r in results]
-        
-        total_visits = np.zeros(self.n_actions, dtype=np.int32)
-        for actions, visits in results:
-            for a, v in zip(actions, visits):
-                total_visits[a] += v
-        actions = [a for a in range(self.n_actions) if total_visits[a] > 0]
-        visits = total_visits[actions]
-        return actions, visits
-
-    def greedy_backup_value(self, env, discount=1):
-        return self.workers[0].greedy_backup_value(env, discount)

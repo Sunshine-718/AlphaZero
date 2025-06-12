@@ -5,7 +5,7 @@
 import numpy as np
 from abc import abstractmethod, ABC
 from utils import softmax, policy_value_fn
-from MCTS import MCTS, MCTS_AZ, RootParallelMCTS
+from MCTS import MCTS, MCTS_AZ
 
 
 class Player(ABC):
@@ -92,13 +92,10 @@ class MCTSPlayer(Player):
         return action
 
 class AlphaZeroPlayer(Player):
-    def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0, num_worker=1):
+    def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0):
         super().__init__()
         self.pv_fn = policy_value_fn
-        if num_worker == 1:
-            self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
-        else:
-            self.mcts = RootParallelMCTS(policy_value_fn, c_init=c_puct, n_playout=n_playout, num_worker=num_worker)
+        self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
         self.is_selfplay = is_selfplay
         self.n_actions = policy_value_fn.n_actions
 
