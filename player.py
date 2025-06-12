@@ -5,13 +5,7 @@
 import numpy as np
 from abc import abstractmethod, ABC
 from utils import softmax, policy_value_fn
-try:
-    from mcts_cython import MCTS, MCTS_AZ, RootParallelMCTS
-    print("[Info] Use Cython-optimised MCTS")
-except ImportError as e:
-    from MCTS import MCTS, MCTS_AZ, RootParallelMCTS
-    print(e)
-    print("[Warning] Falling back to pure-Python MCTS")
+from MCTS import MCTS, MCTS_AZ, RootParallelMCTS
 
 
 class Player(ABC):
