@@ -14,20 +14,20 @@ from ..NetworkBase import Base
 class CNN(Base):
     def __init__(self, lr, in_dim=3, h_dim=64, out_dim=7, num_quantiles=51, device='cpu'):
         super().__init__()
-        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2), bias=False),
+        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2), bias=True),
                                     nn.BatchNorm2d(h_dim),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim, h_dim * 2,
-                                              kernel_size=(4, 5), bias=False),
+                                              kernel_size=(4, 5), bias=True),
                                     nn.BatchNorm2d(h_dim * 2),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim * 2, h_dim * 4,
-                                              kernel_size=(5, 5), bias=False),
+                                              kernel_size=(5, 5), bias=True),
                                     nn.BatchNorm2d(h_dim * 4),
                                     nn.SiLU(True),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, out_dim))
-        self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4, bias=False),
+        self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4, bias=True),
                                         nn.BatchNorm1d(h_dim * 4),
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 4, num_quantiles))
