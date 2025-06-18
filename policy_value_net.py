@@ -14,7 +14,7 @@ def quantile_huber_loss(pred, target, tau, kappa=1.0):
     huber = torch.where(diff.abs() <= kappa, 0.5 * diff.pow(2), kappa * (diff.abs() - 0.5 * kappa))
     tau = tau.view(1, -1)
     loss = torch.abs(tau - (diff.detach() < 0).float()) * huber
-    return loss.mean()
+    return loss.mean(dim=1)
 
 
 class PolicyValueNet:
@@ -63,13 +63,14 @@ class PolicyValueNet:
         self.opt.zero_grad()
         log_p_pred, value_quantiles = self.net(state)
         _, value_quantiles_ = self.net(state_)
-        ratio = torch.exp(log_p_pred - prob.log())
+        action = torch.argmax(prob, dim=1).view(-1, 1)
+        ratio = torch.exp(log_p_pred.gather(1, action) - prob.gather(1, action).log())
         clip_coef = 0.25
         ratio = torch.clamp(ratio, 1 / (1 + clip_coef), 1 + clip_coef)
         v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
         v_loss += quantile_huber_loss(torch.tanh(value_quantiles_), -value, self.tau)
-        p_loss = -torch.mean(torch.sum(prob * log_p_pred, dim=1))
-        loss = (p_loss + v_loss) * ratio
+        p_loss = -torch.sum(prob * log_p_pred, dim=1)
+        loss = torch.mean((p_loss + v_loss) * ratio)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
         self.opt.step()
@@ -81,7 +82,7 @@ class PolicyValueNet:
                 param_norm = param.grad.data.norm(2)
                 total_norm += param_norm.item() ** 2
             total_norm = total_norm ** 0.5
-        return float(p_loss), float(v_loss), float(entropy), total_norm
+        return float(p_loss.mean()), float(v_loss.mean()), float(entropy), total_norm
 
     def save(self, params=None):
         if params is None:

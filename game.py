@@ -52,7 +52,7 @@ class Game:
     def start_self_play(self, player, temp=1, first_n_steps=5, show=0, discount=0.99, dirichlet_alpha=0.3):
         self.env.reset()
         states, mcts_probs, current_players, next_states, masks = [], [], [], [], []
-        # values = []
+        values = []
         steps = 0
         while True:
             if steps < first_n_steps:
@@ -70,9 +70,12 @@ class Game:
             else:
                 pair = [(child.n_visits, -child.Q) for child in node.children.values()]
                 visits, Q = zip(*pair)
-                weights = np.array([i / sum(visits) for i in visits])
-                Q = np.array(Q)
-                v = np.sum(weights * Q)
+                if sum(visits) == 0:
+                    v = node.Q
+                else:
+                    weights = np.array([i / sum(visits) for i in visits])
+                    Q = np.array(Q)
+                    v = np.sum(weights * Q)
             values.append(v)
             mcts_probs.append(probs)
             current_players.append(self.env.turn)
