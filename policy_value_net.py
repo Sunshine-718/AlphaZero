@@ -3,6 +3,7 @@
 # Written by: Sunshine
 # Created on: 09/Sep/2024  04:23
 import torch
+import torch.nn.functional as F
 import numpy as np
 from copy import deepcopy
 
@@ -14,7 +15,7 @@ def quantile_huber_loss(pred, target, tau, kappa=1.0):
     huber = torch.where(diff.abs() <= kappa, 0.5 * diff.pow(2), kappa * (diff.abs() - 0.5 * kappa))
     tau = tau.view(1, -1)
     loss = torch.abs(tau - (diff.detach() < 0).float()) * huber
-    return loss.mean(dim=1)
+    return loss.mean()
 
 
 class PolicyValueNet:
@@ -55,22 +56,17 @@ class PolicyValueNet:
 
     def train_step(self, batch, augmentation=None):
         self.net.train()
-        if augmentation is not None:
-            batch = augmentation(batch)
+        batch = augmentation(batch)
         state, prob, value, *_ = batch
         state_ = deepcopy(state)
         state_[:, -1, :, :] = -state_[:, -1, :, :]
         self.opt.zero_grad()
         log_p_pred, value_quantiles = self.net(state)
         _, value_quantiles_ = self.net(state_)
-        action = torch.argmax(prob, dim=1).view(-1, 1)
-        ratio = torch.exp(log_p_pred.gather(1, action) - prob.gather(1, action).log())
-        clip_coef = 0.25
-        ratio = torch.clamp(ratio, 1 / (1 + clip_coef), 1 + clip_coef)
         v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
         v_loss += quantile_huber_loss(torch.tanh(value_quantiles_), -value, self.tau)
-        p_loss = -torch.sum(prob * log_p_pred, dim=1)
-        loss = torch.mean((p_loss + v_loss) * ratio)
+        p_loss = -torch.mean(torch.sum(prob * log_p_pred, dim=1))
+        loss = p_loss + v_loss + torch.abs(value_quantiles + value_quantiles_.detach()).mean()
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
         self.opt.step()

@@ -68,7 +68,7 @@ class Game:
             if not node.children:
                 v = node.Q
             else:
-                pair = [(child.n_visits, -child.Q) for child in node.children.values()]
+                pair = [(child.n_visits, -child.Q / discount) for child in node.children.values()]
                 visits, Q = zip(*pair)
                 if sum(visits) == 0:
                     v = node.Q
@@ -101,6 +101,6 @@ class Game:
                 # return winner, zip(states, mcts_probs, winner_z, next_states, dones, masks)
                 values = np.array(values)
                 winner_z = np.array(winner_z)
-                ratio = 0.25
+                ratio = 0.5
                 values = ratio * values + (1 - ratio) * winner_z
                 return winner, zip(states, mcts_probs, values, next_states, dones, masks)
