@@ -80,7 +80,7 @@ class TrainPipeline:
             new_probs, new_v = self.policy_value_net.policy_value(state)
             kl = np.mean(np.sum(
                 old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-            if kl > 0.015:
+            if kl > 0.08:
                 break
         explained_var_old = explained_var(old_v, value)
         explained_var_new = explained_var(new_v, value)

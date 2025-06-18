@@ -101,5 +101,3 @@ class Game:
                 ratio = 0.25
                 values = ratio * values + (1 - ratio) * winner_z
                 return winner, zip(states, mcts_probs, values, next_states, dones, masks)
-
-            
