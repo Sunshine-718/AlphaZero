@@ -64,7 +64,16 @@ class Game:
             steps += 1
             states.append(self.env.current_state())
             masks.append(self.env.valid_mask())
-            values.append(float(player.mcts.Q))
+            node = player.mcts.root
+            if not node.child:
+                v = node.Q
+            else:
+                pair = [(child.n_visits, -child.Q) for child in node.child]
+                visits, Q = zip(*pair)
+                weights = np.array([i / sum(visits) for i in visits])
+                Q = np.array(Q)
+                v = np.sum(weights * Q)
+            values.append(v)
             mcts_probs.append(probs)
             current_players.append(self.env.turn)
             self.env.step(action)
@@ -73,12 +82,12 @@ class Game:
                 self.env.show()
             if self.env.done():
                 winner = self.env.winPlayer()
-                # winner_z = np.zeros(len(current_players))
-                # if winner != 0:
-                #     winner_z[np.array(current_players) == winner] = 1
-                #     winner_z[np.array(current_players) != winner] = -1
-                #     for idx, i in enumerate(winner_z):
-                #         winner_z[idx] = i * pow(discount, len(winner_z) - idx - 1)
+                winner_z = np.zeros(len(current_players))
+                if winner != 0:
+                    winner_z[np.array(current_players) == winner] = 1
+                    winner_z[np.array(current_players) != winner] = -1
+                    for idx, i in enumerate(winner_z):
+                        winner_z[idx] = i * pow(discount, len(winner_z) - idx - 1)
                 if show:
                     if winner != 0:
                         print(f"Game end. Wineer is Player: {[None, 'X', 'O'][int(winner)]}")
@@ -87,5 +96,9 @@ class Game:
                 dones = [False for _ in range(len(current_players))]
                 dones[-1] = True
                 # return winner, zip(states, mcts_probs, winner_z, next_states, dones, masks)
+                values = np.array(values)
+                winner_z = np.array(winner_z)
+                ratio = 0.25
+                values = ratio * values + (1 - ratio) * winner_z
                 return winner, zip(states, mcts_probs, values, next_states, dones, masks)
             
