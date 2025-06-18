@@ -68,7 +68,7 @@ class Game:
             if not node.children:
                 v = node.Q
             else:
-                pair = [(child.n_visits, -child.Q) for child in node.children]
+                pair = [(child.n_visits, -child.Q) for child in node.children.values()]
                 visits, Q = zip(*pair)
                 weights = np.array([i / sum(visits) for i in visits])
                 Q = np.array(Q)
