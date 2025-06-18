@@ -52,7 +52,7 @@ class Game:
     def start_self_play(self, player, temp=1, first_n_steps=5, show=0, discount=0.99, dirichlet_alpha=0.3):
         self.env.reset()
         states, mcts_probs, current_players, next_states, masks = [], [], [], [], []
-        values = []
+        # values = []
         steps = 0
         while True:
             if steps < first_n_steps:
@@ -101,4 +101,5 @@ class Game:
                 ratio = 0.25
                 values = ratio * values + (1 - ratio) * winner_z
                 return winner, zip(states, mcts_probs, values, next_states, dones, masks)
+
             
