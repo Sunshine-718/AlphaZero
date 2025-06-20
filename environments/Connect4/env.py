@@ -44,7 +44,7 @@ class Env(Environment):
         return self.board
 
     def done(self):
-        return self.check_full() or self.winPlayer() != 0
+        return self.check_full() or self.winPlayer != 0
 
     def valid_move(self):
         return valid_move(self.transformer.board)

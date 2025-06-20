@@ -84,12 +84,13 @@ class MCTSPlayer(Player):
             self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
 
     def reset_player(self):
-        self.mcts.update_with_move(-1)
+        self.mcts.prune_root(-1)
 
     def get_action(self, env, discount=1):
         action = self.mcts.get_action(env, discount)
         self.reset_player()
         return action
+
 
 class AlphaZeroPlayer(Player):
     def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0):
@@ -106,7 +107,7 @@ class AlphaZeroPlayer(Player):
         self.mcts.eval()
 
     def reset_player(self):
-        self.mcts.update_with_move(-1)
+        self.mcts.prune_root(-1)
 
     def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=1):
         action_probs = np.zeros((self.n_actions,), dtype=np.float32)
