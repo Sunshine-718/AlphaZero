@@ -5,10 +5,32 @@
 from abc import abstractmethod, ABC
 
 
+class BoardTransformerBase(ABC):
+    def __init__(self, board, action_list):
+        self._board = board
+        self._action_list = action_list
+
+    def flip(self):
+        raise NotImplementedError("Flip is not implemented in this class.")
+
+    def rotate(self):
+        raise NotImplementedError("Rotation is not implemented in this class.")
+
+    def flip_and_rotate(self):
+        raise NotImplementedError("Flip and rotate is not implemented in this class.")
+    
+    def get_action(self, action):
+        raise NotImplementedError("Get action is not implemented in this class.")
+
+
 class Environment(ABC):
     def __init__(self):
         self.board = None
         self.turn = None    # Recommended: 1 for X and -1 for O
+    
+    @abstractmethod
+    def copy(self):
+        raise NotImplementedError
 
     @abstractmethod
     def reset(self):
@@ -83,5 +105,12 @@ class Environment(ABC):
     def show(self):
         """
         Function to show the board.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def random_transform(self):
+        """
+        Function to randomly transform the board, such as flipping or rotating.
         """
         raise NotImplementedError

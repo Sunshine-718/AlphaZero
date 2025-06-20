@@ -68,13 +68,12 @@ class TreeNode:
 
 
 class MCTS:
-    def __init__(self, policy_value_fn, c_init=1, n_playout=1000, random_flip=True):
+    def __init__(self, policy_value_fn, c_init=1, n_playout=1000):
         self.root = TreeNode(None, 1, None)
         self.policy = policy_value_fn
         self.c_init = c_init
         self.c_base = n_playout / 800 * 19652
         self.n_playout = n_playout
-        self.random_flip = random_flip
     
     @property
     def Q(self):
@@ -95,10 +94,7 @@ class MCTS:
 
     def playout(self, env, discount=1):
         node = self.select_leaf_node(env)
-        env_aug, flipped = env.random_flip()
-        action_probs, leaf_value = self.policy(env_aug)
-        if flipped:
-            action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
+        action_probs, leaf_value = self.policy(env)
         if not env.done():
             node.expand(action_probs)
         node.update(-leaf_value, discount)
@@ -119,10 +115,7 @@ class MCTS:
 class MCTS_AZ(MCTS):
     def playout(self, env, dirichlet_alpha=0.3, discount=1):
         node = self.select_leaf_node(env)
-        env_aug, flipped = env.random_flip()
-        action_probs, leaf_value = self.policy(env_aug)
-        if flipped:
-            action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
+        action_probs, leaf_value = self.policy(env)
         if not env.done():
             if dirichlet_alpha is not None:
                 noise = np.random.dirichlet(

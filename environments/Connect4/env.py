@@ -3,14 +3,34 @@
 # Written by: Sunshine
 # Created on: 25/Jun/2024  13:03
 import numpy as np
-from ..Environment import Environment
+from ..Environment import Environment, BoardTransformerBase
 from .utils import check_winner, valid_move, place, check_full, board_to_state, valid_mask
 
 
+class BoardTransformer(BoardTransformerBase):
+    def __init__(self, board, action_list):
+        self._board = board
+        self._action_list = action_list
+    
+    @property
+    def board(self):
+        return self._board
+
+    def flip(self):
+        self._action_list = self._action_list[::-1]
+        self._board = self._board[:, ::-1]
+    
+    def get_action(self, action):
+        return self._action_list[action]
+
+
 class Env(Environment):
-    def __init__(self):
+    def __init__(self, random_transform=True):
         super().__init__()
         self.board = np.zeros((6, 7), dtype=np.float32)
+        self.transformer = BoardTransformer(self.board, list(range(7)))
+        if random_transform:
+            self.random_transform()
         self.turn = 1
     
     def copy(self):
@@ -27,17 +47,17 @@ class Env(Environment):
         return self.check_full() or self.winPlayer() != 0
 
     def valid_move(self):
-        return valid_move(self.board)
+        return valid_move(self.transformer.board)
     
     def valid_mask(self):
-        return valid_mask(self.board)
+        return valid_mask(self.transformer.board)
 
     def switch_turn(self):
         self.turn = [0, -1, 1][self.turn]
         return self.turn
 
     def place(self, action):
-        return place(self.board, action, self.turn)
+        return place(self.board, self.transformer.get_action(action), self.turn)
 
     def check_full(self):
         return check_full(self.board)
@@ -46,7 +66,7 @@ class Env(Environment):
         return check_winner(self.board)
 
     def current_state(self):
-        return board_to_state(self.board, self.turn)
+        return board_to_state(self.transformer.board, self.turn)
 
     def step(self, action):
         if self.place(action):
@@ -63,19 +83,20 @@ class Env(Environment):
             print(' '.join(i))
         print(' '.join(map(str, range(7))))
         print('=' * 20)
-
-    def flip(self, inplace: bool = False):
-        target = self if inplace else self.copy()
-        target.board = target.board[:, ::-1]
-        return target
-
-    def flip_action(self, col: int) -> int:
-        return self.board.shape[1] - 1 - col
-
-    def random_flip(self, p: float = 0.5):
-        env_copy = self.copy()
-        flipped = False
-        if np.random.rand() < p:
-            env_copy.board = env_copy.board[:, ::-1]
-            flipped = True
-        return env_copy, flipped
+    
+    def random_transform(self):
+        if np.random.rand() < 0.5:
+            self.transformer.flip()
+        return self
+    
+    def __board_to_int(board):
+        code = 0
+        for i in range(6):
+            for j in range(7):
+                cell = board[i,j]
+                val = 0 if cell == 0 else (1 if cell == 1 else 2)
+                code = (code << 2) | val
+        return code
+    
+    def __hash__(self):
+        return self.__board_to_int(self.board)
