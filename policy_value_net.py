@@ -65,7 +65,7 @@ class PolicyValueNet:
         _, value_quantiles_ = self.net(state_)
         v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
         v_loss += quantile_huber_loss(torch.tanh(value_quantiles_), -value, self.tau)
-        p_loss = -torch.sum(prob * log_p_pred, dim=1).mean()
+        p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
         loss = p_loss + v_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
