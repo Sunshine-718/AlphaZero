@@ -53,6 +53,22 @@ class TreeNode:
             self.u = (c_init + math.log((1 + self.parent.n_visits + c_base) / c_base)
                       ) * prior * math.sqrt(self.parent.n_visits) / (1 + self.n_visits)
         return -self.Q + self.u
+    
+    def UCT(self, c_init, c_base):
+        if self.parent is None:
+            raise RuntimeError('UCT cannot be called in root node.')
+        if self.n_visits == 0:
+            self.u = float('inf')
+        else:
+            self.u = (c_init + math.log((1 + self.parent.n_visits + c_base) / c_base)
+                      ) * math.sqrt(math.log(self.parent.n_visits) / self.n_visits)
+        return -self.Q + self.u
+    
+    def UCB(self, c_init, c_base, UCT=False):
+        if UCT:
+            return self.UCT(c_init, c_base)
+        else:
+            return self.PUCT(c_init, c_base)
 
     def expand(self, action_probs, noise=None):
         for idx, (action, prior) in enumerate(action_probs):
@@ -62,8 +78,8 @@ class TreeNode:
                 else:
                     self.children[action] = TreeNode(self, prior, noise[idx])
 
-    def select(self, c_init, c_base):
-        return max(self.children.items(), key=lambda action_node: action_node[1].PUCT(c_init, c_base))
+    def select(self, c_init, c_base, UCT=False):
+        return max(self.children.items(), key=lambda action_node: action_node[1].UCB(c_init, c_base, UCT))
 
     def update(self, leaf_value, discount):
         if self.parent:
@@ -91,15 +107,15 @@ class MCTS:
     def eval(self):
         self.root.eval()
 
-    def select_leaf_node(self, env):
+    def select_leaf_node(self, env, UCT=False):
         node = self.root
         while not node.is_leaf:
-            action, node = node.select(self.c_init, self.c_base)
+            action, node = node.select(self.c_init, self.c_base, UCT)
             env.step(action)
         return node
 
     def playout(self, env, alpha=None, discount=1):
-        node = self.select_leaf_node(env)
+        node = self.select_leaf_node(env, True)
         action_probs, leaf_value = self.policy(env)
         if not env.done():
             node.expand(action_probs)

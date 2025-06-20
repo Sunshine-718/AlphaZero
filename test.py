@@ -30,7 +30,7 @@ if __name__ == '__main__':
         #                             n_playout=500, is_selfplay=0)
         # mcts.eval()
         
-        mcts = MCTSPlayer(4, 1000, 1)
+        mcts = MCTSPlayer(1.5, 2000, 1)
     
         game.start_play(mcts, mcts, 0.972, show=1, show_nn=0)
     except KeyboardInterrupt:
