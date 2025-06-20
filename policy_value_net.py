@@ -3,6 +3,7 @@
 # Written by: Sunshine
 # Created on: 09/Sep/2024  04:23
 import torch
+import torch.nn.functional as F
 import numpy as np
 from copy import deepcopy
 
@@ -14,6 +15,7 @@ def quantile_huber_loss(pred, target, tau, kappa=1.0):
     huber = torch.where(diff.abs() <= kappa, 0.5 * diff.pow(2), kappa * (diff.abs() - 0.5 * kappa))
     tau = tau.view(1, -1)
     loss = torch.abs(tau - (diff.detach() < 0).float()) * huber
+    return loss.mean()
     return loss.mean()
 
 
@@ -55,8 +57,7 @@ class PolicyValueNet:
 
     def train_step(self, batch, augmentation=None):
         self.net.train()
-        if augmentation is not None:
-            batch = augmentation(batch)
+        batch = augmentation(batch)
         state, prob, value, *_ = batch
         state_ = deepcopy(state)
         state_[:, -1, :, :] = -state_[:, -1, :, :]
