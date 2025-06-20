@@ -16,7 +16,6 @@ def quantile_huber_loss(pred, target, tau, kappa=1.0):
     tau = tau.view(1, -1)
     loss = torch.abs(tau - (diff.detach() < 0).float()) * huber
     return loss.mean()
-    return loss.mean()
 
 
 class PolicyValueNet:
