@@ -150,19 +150,10 @@ class MCTS_AZ(MCTS):
     def playout(self, env, alpha=None, discount=1):
         noise = None
         node = self.select_leaf_node(env)
-        if node.deterministic:
-            key = env.key()
-            cached = self.cache.get(key)
-            if cached is not None:
-                action_probs, leaf_value = cached
-            else:
-                action_probs, leaf_value = self.policy(env)
-                self.cache.put(key, (action_probs, leaf_value), env)
-        else:
-            env_aug, flipped = env.random_flip()
-            action_probs, leaf_value = self.policy(env_aug)
-            if flipped:
-                action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
+        env_aug, flipped = env.random_flip()
+        action_probs, leaf_value = self.policy(env_aug)
+        if flipped:
+            action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
         if not env.done():
             if alpha is not None:
                 noise = np.random.dirichlet([alpha for _ in action_probs])
@@ -184,3 +175,22 @@ class MCTS_AZ(MCTS):
         act_visits = [(action, node.n_visits)
                       for action, node in self.root.children.items()]
         return zip(*act_visits)
+    
+    def greedy_backup_value(self, env, discount=1.0):
+        root_player = env.turn
+        node, depth = self.root, 0
+
+        while not env.done() and not node.is_leaf:
+            action, node = max(node.children.items(),
+                            key=lambda p: p[1].n_visits)
+            env.step(action)      # 会自动切换 env.turn
+            depth += 1
+
+        if env.done():
+            winner = env.winPlayer()
+            leaf_value = 0 if winner == 0 else (1 if winner == root_player else -1)
+        else:
+            _, raw_v = self.policy(env)
+            leaf_value = raw_v if env.turn == root_player else -raw_v
+
+        return (discount ** depth) * leaf_value

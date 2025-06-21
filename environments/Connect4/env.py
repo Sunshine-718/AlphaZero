@@ -47,16 +47,6 @@ class Env(Environment):
 
     def current_state(self):
         return board_to_state(self.board, self.turn)
-    
-    def augmented_state_mask(self):
-        flipped = self.board[:, ::-1]
-        state1 = self.current_state()
-        state2 = board_to_state(flipped, self.turn)
-        valid_mask1 = self.valid_mask()
-        valid_mask2 = valid_mask(flipped)
-        state = np.concatenate((state1, state2), axis=0)
-        mask = np.concatenate((valid_mask1, valid_mask2), axis=0).reshape(-1, len(valid_mask1))
-        return state, mask
 
     def step(self, action):
         if self.place(action):
@@ -73,10 +63,6 @@ class Env(Environment):
             print(' '.join(i))
         print(' '.join(map(str, range(7))))
         print('=' * 20)
-    
-    def key(self):
-        board_code = self.board.tobytes()
-        return board_code + (b'\x01' if self.turn == 1 else b'\x00')
 
     def flip(self, inplace: bool = False):
         target = self if inplace else self.copy()
