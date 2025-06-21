@@ -1,41 +1,39 @@
 # cython: language_level=3
 # distutils: language = c++
+"""env_cython.pyx — 高性能 Connect‑Four 环境
+-------------------------------------------------
+· 与原 Python 版 API 完全一致，便于无缝替换。
+· Cython 仅在局部使用 typed‑memory‑view 加速，
+  避免在 cdef 类属性上声明 buffer type（Cython 限制）。
+· 兼容 Pickle，多进程共享。编译:  python setup.py build_ext --inplace
+"""
 
 import numpy as np
 cimport numpy as np
 cimport cython
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef class Env:
-    # ===== 私有成员 =====
-    cdef np.ndarray _board          # 6×7 float32 ndarray（普通对象，便于 Pickle）
-    cdef int        _turn           # 1 / -1 表示当前落子方
+    """6×7 Connect‑Four board. 玩家棋子: 1 / -1, 空: 0"""
+
+    # —— 私有成员：仅存储 Python 对象，禁止 buffer type ——
+    cdef np.ndarray _board          # 6×7 float32 ndarray（保持 Pickle 友好）
+    cdef int        _turn           # 1 / -1 当前执子方
 
     # ===== Pickle 协议 =====
     def __getstate__(self):
-        """
-        在序列化（pickle.dumps / multiprocessing）时调用。
-        只返回纯 Python 对象：棋盘副本 + 当前执子方。
-        """
-        return (np.asarray(self._board, dtype=np.float32).copy(),
-                int(self._turn))
+        """返回纯 Python 对象: (棋盘副本, 当前执子方)"""
+        return (np.asarray(self._board, dtype=np.float32).copy(), int(self._turn))
 
     def __setstate__(self, state):
-        """
-        反序列化时调用。
-        __cinit__ 已提前跑过，我们只需把内部状态复原。
-        """
         board, turn = state
-        # 强制 float32，确保与 Cython 运算保持一致
         self._board = np.asarray(board, dtype=np.float32).copy()
         self._turn  = int(turn)
 
     # ===== 只读属性：安全暴露棋盘 =====
     property board:
         def __get__(self):
-            # 返回副本，防止外部直接修改内部状态
             return np.asarray(self._board, dtype=np.float32).copy()
 
     # ===== 基础构造 & 属性 =====
@@ -50,7 +48,7 @@ cdef class Env:
             self._turn = value
 
     cpdef void reset(self):
-        self._board[:, :] = 0
+        self._board[:, :] = 0.
         self._turn = 1
 
     cpdef object copy(self):
@@ -64,13 +62,8 @@ cdef class Env:
         return not np.any(self._board == 0)
 
     cpdef int check_winner(self):
-        """
-        1  → 玩家 1 获胜
-        -1 → 玩家 -1 获胜
-         0 → 未分胜负
-        """
-        # 在局部获取 typed-memory-view 做快速循环
-        cdef float[:, :] board = self._board
+        """1 → 玩家1 获胜 • -1 → 玩家‑1 获胜 • 0 → 未分胜负"""
+        cdef float[:, :] board = self._board  # typed‑memory‑view
         cdef int rows = board.shape[0]
         cdef int cols = board.shape[1]
         cdef int r, c
@@ -119,11 +112,8 @@ cdef class Env:
         self._turn = -1 if self._turn == 1 else 1
 
     cpdef bint place(self, int action):
-        """
-        尝试在第 action 列落子。
-        成功返回 True，否则 False（列已满）。
-        """
-        cdef float[:, :] board = self._board   # memory-view
+        """尝试在第 *action* 列落子。成功返回 True，否则 False（列已满）。"""
+        cdef float[:, :] board = self._board
         cdef int row
         for row in range(board.shape[0] - 1, -1, -1):
             if board[row, action] == 0:
@@ -136,18 +126,11 @@ cdef class Env:
             self.switch_turn()
 
     cpdef np.ndarray current_state(self):
-        """
-        返回网络输入格式：(1, 3, 6, 7)
-        channel 0: 当前玩家棋子
-        channel 1: 对手棋子
-        channel 2: 当前玩家标志 (全 1 或 -1)
-        """
-        cdef np.ndarray[np.float32_t, ndim=4] state = np.zeros(
-            (1, 3, 6, 7), dtype=np.float32
-        )
+        """返回网络输入格式 (1, 3, 6, 7)"""
+        cdef np.ndarray[np.float32_t, ndim=4] state = np.zeros((1, 3, 6, 7), dtype=np.float32)
         state[0, 0] = self._board == 1
         state[0, 1] = self._board == -1
-        state[0, 2][:, :] = 1 if self._turn == 1 else -1
+        state[0, 2][:, :] = 1. if self._turn == 1 else -1.
         return state
 
     cpdef void show(self):
@@ -168,23 +151,13 @@ cdef class Env:
 
     # ===== 翻转相关 =====
     cpdef Env flip(self, bint inplace=False):
-        """
-        水平翻转棋盘。
-        inplace=False（默认）→ 返回新的 Env；True → 原地翻转并返回 self
-        """
-        cdef Env target
-        if inplace:
-            target = self
-        else:
-            target = self.copy()
+        """水平翻转棋盘。inplace=True → 原地翻转。"""
+        cdef Env target = self if inplace else self.copy()
         target._board = target._board[:, ::-1].copy()
         return target
 
     cpdef int flip_action(self, int col):
-        """
-        给定原棋盘列号，返回水平翻转后的列号。
-        若当前棋盘左右对称，则不翻转。
-        """
+        """给定原列号，返回水平翻转后的列号（若棋盘左右对称则原样返回）。"""
         cdef float[:, :] board = self._board
         cdef int rows = board.shape[0]
         cdef int cols = board.shape[1]
@@ -202,10 +175,7 @@ cdef class Env:
         return col if symmetric else cols - 1 - col
 
     cpdef tuple random_flip(self, double p=0.5):
-        """
-        以概率 p 随机水平翻转。
-        返回 (env_copy, flipped_flag)。
-        """
+        """以概率 *p* 随机水平翻转，返回 (env_copy, flipped_flag)。"""
         cdef Env env_copy = self.copy()
         cdef bint flipped = False
         if np.random.rand() < p:

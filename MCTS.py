@@ -4,6 +4,8 @@
 # Created on: 20/Jun/2025  21:55
 import math
 import numpy as np
+import torch
+from lru_cache import LRUCache
 
 
 class TreeNode:
@@ -116,7 +118,10 @@ class MCTS:
 
     def playout(self, env, alpha=None, discount=1):
         node = self.select_leaf_node(env, True)
-        action_probs, leaf_value = self.policy(env)
+        env_aug, flipped = env.random_flip()
+        action_probs, leaf_value = self.policy(env_aug)
+        if flipped:
+            action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
         if not env.done():
             node.expand(action_probs)
         node.update(leaf_value, discount)
@@ -135,16 +140,38 @@ class MCTS:
 
 
 class MCTS_AZ(MCTS):
+    def __init__(self, policy_value_fn, c_init=1, n_playout=1000, cache=None):
+        super().__init__(policy_value_fn, c_init, n_playout)
+        self.cache = LRUCache(10000)
+    
+    def refresh_cache(self, policy_value_fn):
+        self.cache.refresh(policy_value_fn)
+    
     def playout(self, env, alpha=None, discount=1):
         noise = None
         node = self.select_leaf_node(env)
-        action_probs, leaf_value = self.policy(env)
+        if node.deterministic:
+            key = env.key()
+            cached = self.cache.get(key)
+            if cached is not None:
+                action_probs, leaf_value = cached
+            else:
+                action_probs, leaf_value = self.policy(env)
+                self.cache.put(key, (action_probs, leaf_value), env)
+        else:
+            env_aug, flipped = env.random_flip()
+            action_probs, leaf_value = self.policy(env_aug)
+            if flipped:
+                action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
         if not env.done():
             if alpha is not None:
                 noise = np.random.dirichlet([alpha for _ in action_probs])
-            node.expand(action_probs, noise)
+            try:
+                node.expand(action_probs, noise)
+            except TypeError:
+                print(action_probs)
         else:
-            winner = env.win_player()
+            winner = env.winPlayer()
             if winner == 0:
                 leaf_value = 0
             else:

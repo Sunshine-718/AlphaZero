@@ -9,12 +9,7 @@ MODEL_NAME = 'AZ2'
 MODEL_TYPE_DEFAULT = 'current'
 N_PLAYOUT_DEFAULT = 500
 N_PLAYOUT_MIN = 1
-N_PLAYOUT_MAX = 5000
-
-# 新增：worker 数配置
-NUM_WORKER_DEFAULT = max(1, os.cpu_count() // 2)
-NUM_WORKER_MIN = 1
-NUM_WORKER_MAX = max(1, os.cpu_count())
+N_PLAYOUT_MAX = 10000
 
 ANIMATION_INTERVAL_DEFAULT = 40   # ms
 ANIMATION_INTERVAL_MIN = 10
@@ -59,7 +54,6 @@ class Connect4GUI(QWidget):
         self.model_name = MODEL_NAME
         self.model_type = MODEL_TYPE_DEFAULT
         self.n_playout = N_PLAYOUT_DEFAULT
-        self.num_worker = NUM_WORKER_DEFAULT  # ← 新增
         self.animation_interval = ANIMATION_INTERVAL_DEFAULT
         self.player_color = PLAYER_COLOR_DEFAULT
         self.last_probs = None
@@ -94,16 +88,6 @@ class Connect4GUI(QWidget):
         self.n_playout_input.valueChanged.connect(lambda _: self.reload_timer.start(500))
         self.layout.addWidget(self.n_playout_label)
         self.layout.addWidget(self.n_playout_input)
-
-        # num_worker 控件  ← 新增
-        self.worker_label = QLabel("Workers (num_worker):")
-        self.worker_input = QSpinBox()
-        self.worker_input.setMinimum(NUM_WORKER_MIN)
-        self.worker_input.setMaximum(NUM_WORKER_MAX)
-        self.worker_input.setValue(self.num_worker)
-        self.worker_input.valueChanged.connect(lambda _: self.reload_timer.start(500))
-        self.layout.addWidget(self.worker_label)
-        self.layout.addWidget(self.worker_input)
 
         # 网络结构选择
         self.network_label = QLabel("网络结构:")
@@ -185,7 +169,6 @@ class Connect4GUI(QWidget):
     def auto_reload_model(self):
         """读取控件当前值，重新加载模型 / Player 对象"""
         self.n_playout = self.n_playout_input.value()
-        self.num_worker = self.worker_input.value()  # ← 新增
         self.network = self.network_choice.currentText()
         self.model_type = self.model_type_choice.currentText()
         self.animation_interval = self.speed_input.value()
@@ -209,7 +192,6 @@ class Connect4GUI(QWidget):
             c_puct=self.env_module.training_config['c_puct'],
             n_playout=self.n_playout,
             is_selfplay=0,
-            num_worker=self.num_worker  # ← 传递
         )
         self.human = Human(self.policy_net)
 
@@ -336,6 +318,7 @@ class Connect4GUI(QWidget):
             return
         start = time.time()
         action, probs = self.az_player.get_action(self.env)
+        print(self.az_player.mcts.cache.hit_rate())
         self.ai_thinking_time = time.time() - start
         self.thinking_time_label.setText(f"AI 思考时间: {self.ai_thinking_time:.2f} 秒")
         self.last_probs = probs if self.show_probs else None

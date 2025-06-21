@@ -15,9 +15,6 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import trange
 
 
-torch.set_float32_matmul_precision('high')
-
-
 class TrainPipeline:
     def __init__(self, env_name='Connect4', model='CNN', name='AZ'):
         collection = ('Connect4', )  # NBTTT implementation not yet finished.
@@ -65,6 +62,7 @@ class TrainPipeline:
                 for data in play_data:
                     self.buffer.store(*data)
         self.episode_len = int(np.mean(episode_len))
+        assert self.episode_len <= 42
 
     def policy_update(self):
         p_loss, v_loss, entropy, grad_norm = [], [], [], []
@@ -104,9 +102,11 @@ class TrainPipeline:
                 float('inf'), float('inf')
             i += 1
             p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new, kl = self.policy_update()
+            # self.az_player.mcts.refresh_cache(self.az_player.pv_fn)
             
             print(f'batch i: {i}, episode_len: {self.episode_len}, '
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
+            # print(self.az_player.mcts.cache.hit_rate())
 
             writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
             writer.add_scalars('Metric/Explained variance',

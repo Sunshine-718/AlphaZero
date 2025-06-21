@@ -45,13 +45,18 @@ class PolicyValueNet:
         return probs, value
 
     def policy_value_fn(self, env):
-        self.net.eval()
         valid = env.valid_move()
+        # state, mask = env.augmented_state_mask()
+        # state = torch.from_numpy(state).float().to(self.device)
+        # mask = torch.from_numpy(mask).bool().to(self.device)
+        # probs, value = self.policy_value(state, mask)
+        # probs = np.mean(probs, axis=0)
+        # value = np.mean(value, axis=0)
         current_state = torch.from_numpy(
             env.current_state()).float().to(self.device)
         mask = torch.tensor(env.valid_mask(), dtype=torch.bool, device=self.device).unsqueeze(0)
         probs, value = self.policy_value(current_state, mask)
-        action_probs = list(zip(valid, probs.flatten()[valid]))
+        action_probs = tuple(zip(valid, probs.flatten()[valid]))
         return action_probs, value.flatten()[0]
 
     def train_step(self, batch, augmentation=None):
