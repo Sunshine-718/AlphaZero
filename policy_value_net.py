@@ -5,6 +5,7 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
+from utils import r_square
 
 
 def quantile_huber_loss(pred, target, tau, kappa=1.0):
@@ -25,6 +26,8 @@ class PolicyValueNet:
         self.discount = discount
         self.device = self.net.device
         self.n_actions = net.n_actions
+        self.lmbda = 1
+        self.target_kl = 0.015
         if hasattr(self.net, 'num_quantiles'):
             self.num_quantiles = net.num_quantiles
             self.tau = torch.linspace(0.5 / self.num_quantiles, 1 - 0.5 / self.num_quantiles, self.num_quantiles).to(self.device)
@@ -34,10 +37,10 @@ class PolicyValueNet:
         if params:
             self.net.load(params)
 
-    def policy_value(self, state, mask=None):
+    def policy_value(self, state):
         self.net.eval()
         with torch.no_grad():
-            log_p, value_quantile = self.net(state, mask)
+            log_p, value_quantile = self.net(state)
             value_logit = value_quantile.mean(dim=-1)
             probs = np.exp(log_p.cpu().numpy())
             value = np.tanh(value_logit.cpu().numpy())
@@ -47,32 +50,50 @@ class PolicyValueNet:
         valid = env.valid_move()
         current_state = torch.from_numpy(
             env.current_state()).float().to(self.device)
-        mask = torch.tensor(env.valid_mask(), dtype=torch.bool, device=self.device).unsqueeze(0)
-        probs, value = self.policy_value(current_state, mask)
+        probs, value = self.policy_value(current_state)
         action_probs = tuple(zip(valid, probs.flatten()[valid]))
         return action_probs, value.flatten()[0]
 
-    def train_step(self, batch, augmentation=None):
-        self.net.train()
-        batch = augmentation(batch)
-        state, prob, value, next_state, *_ = batch
-        self.opt.zero_grad()
-        log_p_pred, value_quantiles = self.net(state)
-        v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
-        p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
-        loss = p_loss + v_loss
-        loss.backward()
-        # torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)
-        self.opt.step()
-        self.net.eval()
+    def train_step(self, state, prob, value, mask, max_iter):
+        p_l, v_l = [], []
         with torch.no_grad():
-            entropy = -torch.mean(torch.sum(torch.exp(log_p_pred) * log_p_pred, 1))
+            self.eval()
+            log_p, value_quantile = self.net(state)
+            old_probs = np.exp(log_p.cpu().numpy())
+            old_v = np.tanh(value_quantile.mean(dim=-1).cpu().numpy())
+            r2_old = r_square(old_v, value)
+        self.train()
+        for _ in range(max_iter):
+            self.opt.zero_grad()
+            log_p_pred, value_quantiles = self.net(state)
+            v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
+            p_loss = F.kl_div(log_p_pred, prob, reduction='none').masked_fill_(~mask, 0).sum(dim=-1).mean()
+            kl_constraint = F.kl_div(log_p_pred, log_p.exp(), reduction='none').masked_fill_(~mask, 0).sum(dim=-1).mean()
+            loss = p_loss + v_loss + self.lmbda * kl_constraint
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.net.parameters(), 1)
+            self.opt.step()
+            if kl_constraint.item() > self.target_kl * 1.5:
+                self.lmbda *= 2
+            elif kl_constraint.item() < self.target_kl / 1.5:
+                self.lmbda /= 2
+            p_l.append(p_loss.item())
+            v_l.append(v_loss.item())
+            with torch.no_grad():
+                new_probs, new_v = self.policy_value(state)
+            kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
+            if kl > 0.05:
+                break
+        self.eval()
+        r2_new = r_square(new_v, value)
+        with torch.no_grad():
+            entropy = -torch.mean(torch.sum(log_p_pred.exp() * log_p_pred, dim=-1))
             total_norm = 0
             for param in self.net.parameters():
                 param_norm = param.grad.data.norm(2)
                 total_norm += param_norm.item() ** 2
             total_norm = total_norm ** 0.5
-        return float(p_loss), float(v_loss), float(entropy), total_norm
+        return np.mean(p_l), np.mean(v_l), float(entropy), total_norm, kl, r2_old, r2_new
 
     def save(self, params=None):
         if params is None:

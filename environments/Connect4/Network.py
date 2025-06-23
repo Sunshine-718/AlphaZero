@@ -6,7 +6,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim import AdamW
+from torch.optim import NAdam
 from einops import rearrange
 from ..NetworkBase import Base
 
@@ -14,26 +14,26 @@ from ..NetworkBase import Base
 class CNN(Base):
     def __init__(self, lr, in_dim=3, h_dim=64, out_dim=7, num_quantiles=51, device='cpu'):
         super().__init__()
-        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2), bias=True),
+        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
                                     nn.BatchNorm2d(h_dim),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim, h_dim * 2,
-                                              kernel_size=(4, 5), bias=True),
+                                              kernel_size=(4, 5)),
                                     nn.BatchNorm2d(h_dim * 2),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim * 2, h_dim * 4,
-                                              kernel_size=(5, 5), bias=True),
+                                              kernel_size=(5, 5)),
                                     nn.BatchNorm2d(h_dim * 4),
                                     nn.SiLU(True),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, out_dim))
-        self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4, bias=True),
+        self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
                                         nn.BatchNorm1d(h_dim * 4),
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 4, num_quantiles))
         self.device = device
         self.n_actions = out_dim
-        self.opt = AdamW(self.parameters(), lr=lr, weight_decay=0.01)
+        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
         self.weight_init()
         self.to(self.device)
         self.num_quantiles = num_quantiles
@@ -88,7 +88,7 @@ class CNN_old(Base):
                                         nn.Linear(h_dim * 4, 1))
         self.device = device
         self.n_actions = out_dim
-        self.opt = AdamW(self.parameters(), lr=lr, weight_decay=0.01)
+        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
         self.weight_init()
         self.to(self.device)
 
@@ -142,7 +142,7 @@ class ViT(Base):
         self.n_actions = num_action
         self.device = device
         self.to(device)
-        self.opt = AdamW(self.parameters(), lr, weight_decay=0.001)
+        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
 
     def name(self):
         return 'ViT'

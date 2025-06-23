@@ -4,7 +4,7 @@
 # Created on: 14/Jul/2024  21:00
 import torch
 import numpy as np
-from utils import Elo, explained_var
+from utils import Elo
 from game import Game
 from copy import deepcopy
 from environments import load
@@ -65,27 +65,16 @@ class TrainPipeline:
         assert self.episode_len <= 42
 
     def policy_update(self):
-        p_loss, v_loss, entropy, grad_norm = [], [], [], []
-        state, _, value, *_ = self.buffer.sample(self.batch_size)
-        old_probs, old_v = self.policy_value_net.policy_value(state)
-        for _ in range(self.epochs):
-            p_l, v_l, ent, g_n = self.policy_value_net.train_step(self.buffer.sample(self.batch_size), 
-                                                                  self.module.instant_augment)
-            p_loss.append(p_l)
-            v_loss.append(v_l)
-            entropy.append(ent)
-            grad_norm.append(g_n)
-            new_probs, new_v = self.policy_value_net.policy_value(state)
-            kl = np.mean(np.sum(
-                old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-            if kl > 0.05:
-                break
-        explained_var_old = explained_var(old_v, value)
-        explained_var_new = explained_var(new_v, value)
+        batch = self.buffer.sample(self.batch_size)
+        batch = self.module.instant_augment(batch)
+        state, prob, value, _, _, mask = batch
+        
+        p_l, v_l, ent, g_n, kl, r2_old, r2_new = self.policy_value_net.train_step(state, prob, value, mask, max_iter=self.epochs)
+            
         print(f'kl: {kl: .5f}\n'
-              f'explained_var_old: {explained_var_old: .3f}\n'
-              f'explained_var_new: {explained_var_new: .3f}')
-        return np.mean(p_loss), np.mean(v_loss), np.mean(entropy), np.mean(grad_norm), explained_var_old, explained_var_new, kl
+              f'R square (old): {r2_old: .3f}\n'
+              f'R square (new): {r2_new: .3f}')
+        return p_l, v_l, ent, g_n, r2_old, r2_new, kl
 
     def run(self):
         self.show_hyperparams()

@@ -67,13 +67,15 @@ def inspect(net, board=None):
     with torch.no_grad():
         state0 = torch.from_numpy(board_to_state(
             board, 1)).float().to(net.device)
-        p0, value_quantiles0 = net(state0)
+        mask0 = torch.tensor(valid_mask(board), dtype=torch.bool, device=net.device).unsqueeze(0)
+        p0, value_quantiles0 = net(state0, mask0)
         probs0 = torch.exp(p0).detach().cpu().numpy().flatten()
         value0 = np.tanh(value_quantiles0.mean(dim=-1).item())
         board[5, 3] = 1
         state1 = torch.from_numpy(board_to_state(
             board, -1)).float().to(net.device)
-        p1, value_quantiles1 = net(state1)
+        mask1 = torch.tensor(valid_mask(board), dtype=torch.bool, device=net.device).unsqueeze(0)
+        p1, value_quantiles1 = net(state1, mask1)
         probs1 = torch.exp(p1).detach().cpu().numpy().flatten()
         value1 = np.tanh(value_quantiles1.mean(dim=-1).item())
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):

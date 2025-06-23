@@ -52,16 +52,11 @@ def rollout_policy_fn(env):
     return list(zip(valid, probs))
 
 
-def set_learning_rate(optimizer, lr):
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-
 def softmax(x):
     probs = np.exp(x - np.max(x))
     return probs / np.sum(probs)
 
 
-def explained_var(pred, target):
+def r_square(pred, target):
     target = target.cpu().numpy().flatten()
-    return 1 - np.var(target - pred.flatten()) / np.var(target)
+    return 1 - np.var(target - pred.flatten()) / np.maximum(np.var(target), 1e-8)
