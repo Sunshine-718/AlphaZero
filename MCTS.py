@@ -183,7 +183,7 @@ class MCTS_AZ(MCTS):
         while not env.done() and not node.is_leaf:
             action, node = max(node.children.items(),
                             key=lambda p: p[1].n_visits)
-            env.step(action)      # 会自动切换 env.turn
+            env.step(action)
             depth += 1
 
         if env.done():

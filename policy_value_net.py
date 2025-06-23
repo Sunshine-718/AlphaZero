@@ -5,7 +5,6 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from copy import deepcopy
 
 
 def quantile_huber_loss(pred, target, tau, kappa=1.0):
@@ -46,12 +45,6 @@ class PolicyValueNet:
 
     def policy_value_fn(self, env):
         valid = env.valid_move()
-        # state, mask = env.augmented_state_mask()
-        # state = torch.from_numpy(state).float().to(self.device)
-        # mask = torch.from_numpy(mask).bool().to(self.device)
-        # probs, value = self.policy_value(state, mask)
-        # probs = np.mean(probs, axis=0)
-        # value = np.mean(value, axis=0)
         current_state = torch.from_numpy(
             env.current_state()).float().to(self.device)
         mask = torch.tensor(env.valid_mask(), dtype=torch.bool, device=self.device).unsqueeze(0)
@@ -60,18 +53,13 @@ class PolicyValueNet:
         return action_probs, value.flatten()[0]
 
     def train_step(self, batch, augmentation=None):
-        loss_fn = torch.nn.CrossEntropyLoss()
         self.net.train()
         batch = augmentation(batch)
-        state, prob, value, *_ = batch
-        state_ = deepcopy(state)
-        state_[:, -1, :, :] = -state_[:, -1, :, :]
+        state, prob, value, next_state, *_ = batch
         self.opt.zero_grad()
         log_p_pred, value_quantiles = self.net(state)
-        _, value_quantiles_ = self.net(state_)
         v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
-        v_loss += quantile_huber_loss(torch.tanh(value_quantiles_), -value, self.tau)
-        p_loss = loss_fn(log_p_pred, prob)
+        p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
         loss = p_loss + v_loss
         loss.backward()
         # torch.nn.utils.clip_grad_norm_(self.net.parameters(), 0.5)

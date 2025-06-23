@@ -5,10 +5,10 @@ training_config = {
     "first_n_steps": 18,
     "c_puct": 1.5,
     "buffer_size": 70000,
-    "batch_size": 512,
+    "batch_size": 64,
     "discount": 0.99,
     "play_batch_size": 1,
-    "epochs": 20,
+    "epochs": 30,
     "pure_mcts_n_playout": 1000,
     "dirichlet_alpha": 0.3,   # depends on the size of action space
     "init_elo": 1500,
