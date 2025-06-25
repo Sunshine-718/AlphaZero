@@ -26,8 +26,6 @@ class PolicyValueNet:
         self.discount = discount
         self.device = self.net.device
         self.n_actions = net.n_actions
-        self.lmbda = 1
-        self.target_kl = 0.015
         if hasattr(self.net, 'num_quantiles'):
             self.num_quantiles = net.num_quantiles
             self.tau = torch.linspace(0.5 / self.num_quantiles, 1 - 0.5 / self.num_quantiles, self.num_quantiles).to(self.device)
@@ -68,15 +66,10 @@ class PolicyValueNet:
             log_p_pred, value_quantiles = self.net(state)
             v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
             p_loss = F.kl_div(log_p_pred, prob, reduction='none').masked_fill_(~mask, 0).sum(dim=-1).mean()
-            kl_constraint = F.kl_div(log_p_pred, log_p.exp(), reduction='none').masked_fill_(~mask, 0).sum(dim=-1).mean()
-            loss = p_loss + v_loss + self.lmbda * kl_constraint
+            loss = p_loss + v_loss
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.net.parameters(), 1)
             self.opt.step()
-            if kl_constraint.item() > self.target_kl * 1.5:
-                self.lmbda *= 2
-            elif kl_constraint.item() < self.target_kl / 1.5:
-                self.lmbda /= 2
             p_l.append(p_loss.item())
             v_l.append(v_loss.item())
             with torch.no_grad():
