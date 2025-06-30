@@ -1,5 +1,5 @@
 training_config = {
-    "lr": 1e-3,
+    "lr": 3e-4,
     "temp": 1.0,
     "n_playout": 100,
     "first_n_steps": 4,
