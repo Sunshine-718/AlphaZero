@@ -12,29 +12,36 @@ from ..NetworkBase import Base
 
 
 class CNN(Base):
-    def __init__(self, lr, in_dim=3, h_dim=64, out_dim=7, num_quantiles=51, device='cpu'):
+    def __init__(self, lr, in_dim=3, h_dim=128, out_dim=7, num_quantiles=51, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
                                     nn.BatchNorm2d(h_dim),
+                                    nn.Dropout2d(0.1),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim, h_dim * 2,
                                               kernel_size=(4, 5)),
                                     nn.BatchNorm2d(h_dim * 2),
+                                    nn.Dropout2d(0.1),
                                     nn.SiLU(True),
                                     nn.Conv2d(h_dim * 2, h_dim * 4,
                                               kernel_size=(5, 5)),
                                     nn.BatchNorm2d(h_dim * 4),
+                                    nn.Dropout2d(0.1),
                                     nn.SiLU(True),
                                     nn.Flatten())
-        self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, out_dim))
+        self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
+                                         nn.LayerNorm(h_dim * 4),
+                                         nn.Dropout(0.1),
+                                         nn.SiLU(True),
+                                         nn.Linear(h_dim * 4, out_dim))
         self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
-                                        nn.BatchNorm1d(h_dim * 4),
+                                        nn.LayerNorm(h_dim * 4),
+                                        nn.Dropout(0.1),
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 4, num_quantiles))
         self.device = device
         self.n_actions = out_dim
         self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
-        self.weight_init()
         self.to(self.device)
         self.num_quantiles = num_quantiles
 
@@ -49,6 +56,12 @@ class CNN(Base):
         log_prob = F.log_softmax(prob_logit, dim=-1)
         value = self.value_head(hidden)
         return log_prob, value
+    
+    def policy_value(self, state, mask=None):
+        self.eval()
+        with torch.no_grad():
+            log_prob, value_quantile = self.forward(state, mask)
+        return log_prob.exp(), value_quantile.mean(dim=-1)
 
 
 class CNN_old(Base):
@@ -128,16 +141,16 @@ class ViT(Base):
         super().__init__()
         self.patch_embed = PatchEmbedding(in_channels, embed_dim)
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=embed_dim, nhead=num_heads, batch_first=True, activation=nn.ReLU(True), norm_first=False, dropout=dropout)
+            d_model=embed_dim, nhead=num_heads, batch_first=True, activation=nn.SiLU(True), norm_first=False, dropout=dropout)
         self.transformer = nn.TransformerEncoder(
             encoder_layer, num_layers=depth)
         self.policy_head = nn.Sequential(nn.Linear(embed_dim, embed_dim),
-                                         nn.BatchNorm1d(embed_dim),
-                                         nn.ReLU(True),
+                                         nn.LayerNorm(embed_dim),
+                                         nn.SiLU(True),
                                          nn.Linear(embed_dim, num_action))
         self.value_head = nn.Sequential(nn.Linear(embed_dim, embed_dim),
-                                        nn.BatchNorm1d(embed_dim),
-                                        nn.ReLU(True),
+                                        nn.LayerNorm(embed_dim),
+                                        nn.SiLU(True),
                                         nn.Linear(embed_dim, 1))
         self.n_actions = num_action
         self.device = device
@@ -148,12 +161,15 @@ class ViT(Base):
         return 'ViT'
 
     def forward(self, x, mask=None):
-        x = self.patch_embed(x)
-        x = self.transformer(x)
-        cls_token = x[:, 0, :]
+        cls_token = self.get_cls_token(x)
         prob_logit = self.policy_head(cls_token)
         if mask is not None:
             prob_logit.masked_fill_(~mask, -float('inf'))
         log_prob = F.log_softmax(prob_logit, dim=-1)
         value_logit = self.value_head(cls_token)
         return log_prob, value_logit
+    
+    def get_cls_token(self, x):
+        x = self.patch_embed(x)
+        x = self.transformer(x)
+        return x[:, 0, :]

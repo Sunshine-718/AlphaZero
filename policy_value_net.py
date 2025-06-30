@@ -72,12 +72,10 @@ class PolicyValueNet:
             self.opt.step()
             p_l.append(p_loss.item())
             v_l.append(v_loss.item())
-            with torch.no_grad():
-                new_probs, new_v = self.policy_value(state)
-            kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-            if kl > 0.05:
-                break
         self.eval()
+        with torch.no_grad():
+            new_probs, new_v = self.policy_value(state)
+        kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
         r2_new = r_square(new_v, value)
         with torch.no_grad():
             entropy = -torch.mean(torch.sum(log_p_pred.exp() * log_p_pred, dim=-1))

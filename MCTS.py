@@ -4,7 +4,7 @@
 # Created on: 20/Jun/2025  21:55
 import math
 import numpy as np
-import torch
+import random
 from lru_cache import LRUCache
 
 
@@ -187,10 +187,10 @@ class MCTS_AZ(MCTS):
             depth += 1
 
         if env.done():
-            winner = env.winPlayer()
+            winner = env.winPlayer()     # 1 / -1 / 0
             leaf_value = 0 if winner == 0 else (1 if winner == root_player else -1)
         else:
             _, raw_v = self.policy(env)
-            leaf_value = raw_v if env.turn == root_player else -raw_v
+            leaf_value = raw_v if env.turn != root_player else -raw_v
 
         return (discount ** depth) * leaf_value
