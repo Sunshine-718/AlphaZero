@@ -26,23 +26,11 @@ class PolicyValueNet:
         self.discount = discount
         self.device = self.net.device
         self.n_actions = net.n_actions
-        if hasattr(self.net, 'num_quantiles'):
-            self.num_quantiles = net.num_quantiles
-            self.tau = torch.linspace(0.5 / self.num_quantiles, 1 - 0.5 / self.num_quantiles, self.num_quantiles).to(self.device)
-        else:
-            self.num_quantiles = None
-            self.tau = None
         if params:
             self.net.load(params)
 
     def policy_value(self, state):
-        self.net.eval()
-        with torch.no_grad():
-            log_p, value_quantile = self.net(state)
-            value_logit = value_quantile.mean(dim=-1)
-            probs = np.exp(log_p.cpu().numpy())
-            value = np.tanh(value_logit.cpu().numpy())
-        return probs, value
+        return self.net.policy_value(state)
 
     def policy_value_fn(self, env):
         valid = env.valid_move()
@@ -53,18 +41,20 @@ class PolicyValueNet:
         return action_probs, value.flatten()[0]
 
     def train_step(self, state, prob, value, mask, max_iter):
+        value_temp = value.cpu().numpy()
+        value[value == -1] = 2
+        value = value.view(-1,).type(torch.int64)
+        ce_loss = torch.nn.CrossEntropyLoss()
         p_l, v_l = [], []
         with torch.no_grad():
             self.eval()
-            log_p, value_quantile = self.net(state)
-            old_probs = np.exp(log_p.cpu().numpy())
-            old_v = np.tanh(value_quantile.mean(dim=-1).cpu().numpy())
-            r2_old = r_square(old_v, value)
+            old_probs, old_v = self.policy_value(state)
+            r2_old = r_square(old_v.reshape(-1), value_temp)
         self.train()
         for _ in range(max_iter):
             self.opt.zero_grad()
-            log_p_pred, value_quantiles = self.net(state)
-            v_loss = quantile_huber_loss(torch.tanh(value_quantiles), value, self.tau)
+            log_p_pred, value_logit = self.net(state)
+            v_loss = ce_loss(value_logit, value)
             p_loss = F.kl_div(log_p_pred, prob, reduction='none').masked_fill_(~mask, 0).sum(dim=-1).mean()
             loss = p_loss + v_loss
             loss.backward()
@@ -76,7 +66,7 @@ class PolicyValueNet:
         with torch.no_grad():
             new_probs, new_v = self.policy_value(state)
         kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-        r2_new = r_square(new_v, value)
+        r2_new = r_square(new_v.reshape(-1), value_temp)
         with torch.no_grad():
             entropy = -torch.mean(torch.sum(log_p_pred.exp() * log_p_pred, dim=-1))
             total_norm = 0

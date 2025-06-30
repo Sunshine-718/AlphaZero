@@ -58,5 +58,5 @@ def softmax(x):
 
 
 def r_square(pred, target):
-    target = target.cpu().numpy().flatten()
+    target = target.flatten()
     return 1 - np.var(target - pred.flatten()) / np.maximum(np.var(target), 1e-8)

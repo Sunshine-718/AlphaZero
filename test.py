@@ -18,21 +18,21 @@ if __name__ == '__main__':
         env = module.Env()
         game = Game(env)
 
-        net = module.CNN(0, device=device)
+        # net = module.CNN(0, device=device)
 
-        policy_value_net = PolicyValueNet(
-            net,
-            config["discount"],
-            f'./params/AZ2_Connect4_CNN_current.pt'
-        )
+        # policy_value_net = PolicyValueNet(
+        #     net,
+        #     config["discount"],
+        #     f'./params/AZ2_Connect4_CNN_current.pt'
+        # )
 
-        mcts = AlphaZeroPlayer(policy_value_net, c_puct=1.5,
-                                    n_playout=500, is_selfplay=0)
-        mcts.eval()
+        # mcts = AlphaZeroPlayer(policy_value_net, c_puct=1.5,
+        #                             n_playout=500, is_selfplay=0)
+        # mcts.eval()
         
-        # mcts = MCTSPlayer(4, 2000, 1)
+        mcts = MCTSPlayer(1., 2000, 1)
     
-        game.start_play(mcts, mcts, 0.972, show=1, show_nn=0)
+        game.start_play(mcts, mcts, 1, show=1, show_nn=0)
     except KeyboardInterrupt:
         print('\n\rquit')
         

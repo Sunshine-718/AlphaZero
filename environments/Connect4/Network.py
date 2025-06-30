@@ -12,7 +12,7 @@ from ..NetworkBase import Base
 
 
 class CNN(Base):
-    def __init__(self, lr, in_dim=3, h_dim=128, out_dim=7, num_quantiles=51, device='cpu'):
+    def __init__(self, lr, in_dim=3, h_dim=64, out_dim=7, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
                                     nn.BatchNorm2d(h_dim),
@@ -38,12 +38,11 @@ class CNN(Base):
                                         nn.LayerNorm(h_dim * 4),
                                         nn.Dropout(0.1),
                                         nn.SiLU(True),
-                                        nn.Linear(h_dim * 4, num_quantiles))
+                                        nn.Linear(h_dim * 4, 3))
         self.device = device
         self.n_actions = out_dim
         self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
         self.to(self.device)
-        self.num_quantiles = num_quantiles
 
     def name(self):
         return 'CNN'
@@ -60,8 +59,10 @@ class CNN(Base):
     def policy_value(self, state, mask=None):
         self.eval()
         with torch.no_grad():
-            log_prob, value_quantile = self.forward(state, mask)
-        return log_prob.exp(), value_quantile.mean(dim=-1)
+            log_prob, value_logit = self.forward(state, mask)
+            value_dist = F.softmax(value_logit, dim=-1)
+            value = torch.sum(torch.tensor([[0, 1, -1]], device=self.device) * value_dist, dim=-1, keepdim=True)
+        return log_prob.exp().cpu().numpy(), value.cpu().numpy()
 
 
 class CNN_old(Base):

@@ -49,10 +49,9 @@ class Game:
                         print('Game end. Draw')
                 return winner
 
-    def start_self_play(self, player, temp=1, first_n_steps=5, show=0, discount=0.99, dirichlet_alpha=0.3):
+    def start_self_play(self, player, temp=1, first_n_steps=5, show=0, discount=1, dirichlet_alpha=0.3):
         self.env.reset()
         states, mcts_probs, current_players, next_states, masks = [], [], [], [], []
-        # values = []
         steps = 0
         while True:
             if steps < first_n_steps:
@@ -63,7 +62,6 @@ class Game:
                     self.env, 1e-3, dirichlet_alpha, discount)
             steps += 1
             states.append(self.env.current_state())
-            # values.append(float(v_target))
             masks.append(self.env.valid_mask())
             mcts_probs.append(probs)
             current_players.append(self.env.turn)
@@ -77,8 +75,6 @@ class Game:
                 if winner != 0:
                     winner_z[np.array(current_players) == winner] = 1
                     winner_z[np.array(current_players) != winner] = -1
-                    for idx, i in enumerate(winner_z):
-                        winner_z[idx] = i * pow(discount, len(winner_z) - idx - 1)
                 if show:
                     if winner != 0:
                         print(f"Game end. Wineer is Player: {[None, 'X', 'O'][int(winner)]}")

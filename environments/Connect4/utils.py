@@ -68,16 +68,14 @@ def inspect(net, board=None):
         state0 = torch.from_numpy(board_to_state(
             board, 1)).float().to(net.device)
         mask0 = torch.tensor(valid_mask(board), dtype=torch.bool, device=net.device).unsqueeze(0)
-        p0, value_quantiles0 = net(state0, mask0)
-        probs0 = torch.exp(p0).detach().cpu().numpy().flatten()
-        value0 = np.tanh(value_quantiles0.mean(dim=-1).item())
+        probs0, value0 = net.policy_value(state0, mask0)
+        probs0, value0 = probs0.flatten(), float(value0[0, 0])
         board[5, 3] = 1
         state1 = torch.from_numpy(board_to_state(
             board, -1)).float().to(net.device)
         mask1 = torch.tensor(valid_mask(board), dtype=torch.bool, device=net.device).unsqueeze(0)
-        p1, value_quantiles1 = net(state1, mask1)
-        probs1 = torch.exp(p1).detach().cpu().numpy().flatten()
-        value1 = np.tanh(value_quantiles1.mean(dim=-1).item())
+        probs1, value1 = net.policy_value(state1, mask1)
+        probs1, value1 = probs1.flatten(), float(value1[0, 0])
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
         print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
     print(f'State-value X: {value0: .4f}\nState-value O: {value1: .4f}')
