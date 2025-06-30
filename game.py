@@ -18,6 +18,7 @@ class Game:
             current_turn = self.env.turn
             player = players[current_turn]
             action, probs, *_ = player.get_action(self.env, discount=discount)
+            player.reset_player()
             prev_env = self.env.copy()
             self.env.step(action)
             if show:

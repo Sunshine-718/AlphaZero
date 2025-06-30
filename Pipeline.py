@@ -144,7 +144,7 @@ class TrainPipeline:
                                             self.c_puct,
                                             self.n_playout)
         current_az_player.eval()
-        mcts_player = MCTSPlayer(5, self.pure_mcts_n_playout)
+        mcts_player = MCTSPlayer(1, self.pure_mcts_n_playout)
         winner = self.game.start_play(
             player1=current_az_player, player2=mcts_player, discount=self.discount, show=0)
         self.elo.update(1 if winner == 1 else 0.5 if winner == 0 else 0)

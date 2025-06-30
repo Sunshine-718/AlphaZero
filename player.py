@@ -14,7 +14,7 @@ class Player(ABC):
         self.mcts = None
 
     def reset_player(self):
-        raise NotImplementedError
+        pass
 
     def train(self):
         raise NotImplementedError
@@ -78,23 +78,21 @@ class Human(Player):
 
 
 class MCTSPlayer(Player):
-    def __init__(self, c_puct=4, n_playout=2000, num_worker=1):
+    def __init__(self, c_puct=4, n_playout=2000):
         super().__init__()
-        if num_worker == 1:
-            self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
+        self.mcts = MCTS(policy_value_fn, c_puct, n_playout)
 
     def reset_player(self):
         self.mcts.prune_root(-1)
 
     def get_action(self, env, discount=1):
         action = self.mcts.get_action(env, discount)
-        self.reset_player()
+        self.mcts.prune_root(action)
         return action
 
 
-class AlphaZeroPlayer(Player):
+class AlphaZeroPlayer(MCTSPlayer):
     def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0):
-        super().__init__()
         self.pv_fn = policy_value_fn
         self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
         self.is_selfplay = is_selfplay
@@ -105,9 +103,6 @@ class AlphaZeroPlayer(Player):
 
     def eval(self):
         self.mcts.eval()
-
-    def reset_player(self):
-        self.mcts.prune_root(-1)
 
     def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=1):
         action_probs = np.zeros((self.n_actions,), dtype=np.float32)
