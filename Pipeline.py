@@ -56,7 +56,7 @@ class TrainPipeline:
         with torch.no_grad():
             for _ in trange(n_games):
                 _, play_data = self.game.start_self_play(
-                    self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, discount=self.discount, dirichlet_alpha=self.dirichlet_alpha)
+                    self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, dirichlet_alpha=self.dirichlet_alpha)
                 play_data = list(play_data)[:]
                 episode_len.append(len(play_data)) 
                 for data in play_data:
@@ -146,10 +146,10 @@ class TrainPipeline:
         current_az_player.eval()
         mcts_player = MCTSPlayer(1, self.pure_mcts_n_playout)
         winner = self.game.start_play(
-            player1=current_az_player, player2=mcts_player, discount=self.discount, show=0)
+            player1=current_az_player, player2=mcts_player, show=0)
         self.elo.update(1 if winner == 1 else 0.5 if winner == 0 else 0)
         winner = self.game.start_play(
-            player1=mcts_player, player2=current_az_player, discount=self.discount, show=0)
+            player1=mcts_player, player2=current_az_player, show=0)
         print('Complete.')
         return self.elo.update(1 if winner == -1 else 0.5 if winner == 0 else 0)
 
@@ -165,14 +165,14 @@ class TrainPipeline:
         flag = False
         for _ in range(n_games // 2):
             winner = self.game.start_play(
-                player1=current_player, player2=best_player, discount=self.discount, show=0)
+                player1=current_player, player2=best_player, show=0)
             if winner == 1:
                 win_rate += 1 / n_games
             elif winner == 0:
                 win_rate += 0.5 / n_games
         for _ in range(n_games // 2):
             winner = self.game.start_play(
-                player1=best_player, player2=current_player, discount=self.discount, show=0)
+                player1=best_player, player2=current_player, show=0)
             if winner == -1:
                 win_rate += 1 / n_games
             elif winner == 0:
@@ -193,7 +193,6 @@ class TrainPipeline:
         print(f'\tBuffer size: {self.buffer_size}')
         print(f'\tBatch size: {self.batch_size}')
         print(f'\tRandom steps: {self.first_n_steps}')
-        print(f'\tDiscount: {self.discount}')
         print(f'\tTemperature: {self.temp}')
         print('=' * 50)
 

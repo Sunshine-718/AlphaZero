@@ -9,7 +9,7 @@ class Game:
     def __init__(self, env):
         self.env = env
 
-    def start_play(self, player1, player2, discount=1, show=1, show_nn=0):
+    def start_play(self, player1, player2, show=1, show_nn=0):
         self.env.reset()
         players = [None, player1, player2]
         if show:
@@ -17,7 +17,7 @@ class Game:
         while True:
             current_turn = self.env.turn
             player = players[current_turn]
-            action, probs, *_ = player.get_action(self.env, discount=discount)
+            action, probs, *_ = player.get_action(self.env)
             player.reset_player()
             prev_env = self.env.copy()
             self.env.step(action)
@@ -50,17 +50,17 @@ class Game:
                         print('Game end. Draw')
                 return winner
 
-    def start_self_play(self, player, temp=1, first_n_steps=5, show=0, discount=1, dirichlet_alpha=0.3):
+    def start_self_play(self, player, temp=1, first_n_steps=5, show=0, dirichlet_alpha=0.3):
         self.env.reset()
         states, mcts_probs, current_players, next_states, masks = [], [], [], [], []
         steps = 0
         while True:
             if steps < first_n_steps:
                 action, probs = player.get_action(
-                    self.env, temp, dirichlet_alpha, discount)
+                    self.env, temp, dirichlet_alpha)
             else:
                 action, probs = player.get_action(
-                    self.env, 1e-3, dirichlet_alpha, discount)
+                    self.env, 1e-3, dirichlet_alpha)
             steps += 1
             states.append(self.env.current_state())
             masks.append(self.env.valid_mask())

@@ -85,8 +85,8 @@ class MCTSPlayer(Player):
     def reset_player(self):
         self.mcts.prune_root(-1)
 
-    def get_action(self, env, discount=1):
-        action = self.mcts.get_action(env, discount)
+    def get_action(self, env):
+        action = self.mcts.get_action(env)
         self.mcts.prune_root(action)
         return action
 
@@ -104,10 +104,9 @@ class AlphaZeroPlayer(MCTSPlayer):
     def eval(self):
         self.mcts.eval()
 
-    def get_action(self, env, temp=0, dirichlet_alpha=0.3, discount=1):
+    def get_action(self, env, temp=0, dirichlet_alpha=0.3):
         action_probs = np.zeros((self.n_actions,), dtype=np.float32)
-        actions, visits = self.mcts.get_action_visits(
-            env, dirichlet_alpha, discount)
+        actions, visits = self.mcts.get_action_visits(env, dirichlet_alpha)
         if temp == 0:
             probs = np.zeros((len(visits),), dtype=np.float32)
             probs[np.where(np.array(visits) == max(visits))] = 1 / list(visits).count(max(visits))
@@ -115,7 +114,6 @@ class AlphaZeroPlayer(MCTSPlayer):
             probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
         action = np.random.choice(actions, p=probs)
         action_probs[list(actions)] = probs
-        # v_target = self.mcts.greedy_backup_value(env.copy(), discount)
         if self.is_selfplay:
             self.mcts.prune_root(action)
         else:

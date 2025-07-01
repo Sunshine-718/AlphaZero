@@ -55,13 +55,13 @@ if __name__ == '__main__':
         human = Human(policy_net=az_player.pv_fn if args.show_nn else None)
         
         if args.x and args.o:
-            game.start_play(human, human, config['discount'], show=1, show_nn=int(args.show_nn))
+            game.start_play(human, human, show=1, show_nn=int(args.show_nn))
         elif args.x:
-            game.start_play(human, az_player, config['discount'], show=1, show_nn=int(args.show_nn))
+            game.start_play(human, az_player, show=1, show_nn=int(args.show_nn))
         elif args.o:
-            game.start_play(az_player, human, config['discount'], show=1, show_nn=int(args.show_nn))
+            game.start_play(az_player, human, show=1, show_nn=int(args.show_nn))
         elif args.self_play and not (args.x or args.o):
-            game.start_play(az_player, az_player, config['discount'], show=1, show_nn=int(args.show_nn))
+            game.start_play(az_player, az_player, show=1, show_nn=int(args.show_nn))
         else:
             raise AttributeError("Invalid argument(s).\nType 'python3 ./play.py -h' for help")
     except KeyboardInterrupt:

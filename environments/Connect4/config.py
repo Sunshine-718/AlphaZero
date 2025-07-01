@@ -6,7 +6,6 @@ training_config = {
     "c_puct": 1.5,
     "buffer_size": 10000,
     "batch_size": 512,
-    "discount": 0.99,
     "play_batch_size": 1,
     "epochs": 10,
     "pure_mcts_n_playout": 1000,

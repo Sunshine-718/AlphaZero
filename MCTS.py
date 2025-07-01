@@ -81,9 +81,9 @@ class TreeNode:
     def select(self, c_init, c_base, UCT=False):
         return max(self.children.items(), key=lambda action_node: action_node[1].UCB(c_init, c_base, UCT))
 
-    def update(self, leaf_value, discount):
+    def update(self, leaf_value):
         if self.parent:
-            self.parent.update(-leaf_value * discount, discount)
+            self.parent.update(-leaf_value)
         self.n_visits += 1
         # Q = ((n - 1) * Q_old + leaf_value) / n
         self.Q += (leaf_value - self.Q) / self.n_visits
@@ -114,7 +114,7 @@ class MCTS:
             env.step(action)
         return node
 
-    def playout(self, env, alpha=None, discount=1):
+    def playout(self, env, alpha=None):
         node = self.select_leaf_node(env, True)
         env_aug, flipped = env.random_flip()
         action_probs, leaf_value = self.policy(env_aug)
@@ -122,11 +122,11 @@ class MCTS:
             action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
         if not env.done():
             node.expand(action_probs)
-        node.update(leaf_value, discount)
+        node.update(leaf_value)
 
-    def get_action(self, env, discount=1):
+    def get_action(self, env):
         for _ in range(self.n_playout):
-            self.playout(env.copy(), discount)
+            self.playout(env.copy())
         return max(self.root.children.items(), key=lambda action_node: action_node[1].n_visits)
 
     def prune_root(self, node_index):
@@ -138,13 +138,13 @@ class MCTS:
 
 
 class MCTS_AZ(MCTS):
-    def __init__(self, policy_value_fn, c_init=1, n_playout=1000, cache=None):
+    def __init__(self, policy_value_fn, c_init=1, n_playout=1000):
         super().__init__(policy_value_fn, c_init, n_playout)
     
     def refresh_cache(self, policy_value_fn):
         self.cache.refresh(policy_value_fn)
     
-    def playout(self, env, alpha=None, discount=1):
+    def playout(self, env, alpha=None):
         noise = None
         node = self.select_leaf_node(env)
         env_aug, flipped = env.random_flip()
@@ -164,11 +164,11 @@ class MCTS_AZ(MCTS):
                 leaf_value = 0
             else:
                 leaf_value = (1 if winner == env.turn else -1)
-        node.update(leaf_value, discount)
+        node.update(leaf_value)
     
-    def get_action_visits(self, env, alpha=None, discount=1):
+    def get_action_visits(self, env, alpha=None):
         for _ in range(self.n_playout):
-            self.playout(env.copy(), alpha, discount)
+            self.playout(env.copy(), alpha)
         act_visits = [(action, node.n_visits)
                       for action, node in self.root.children.items()]
         return zip(*act_visits)
