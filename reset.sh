@@ -1,4 +1,4 @@
-#! usr/bin/dash
+#!/usr/bin/env bash
 
 confirm() {
     while true; do

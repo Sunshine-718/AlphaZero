@@ -5,25 +5,15 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from utils import r_square
-
-
-def quantile_huber_loss(pred, target, tau, kappa=1.0):
-    assert pred.shape[1] == tau.shape[0], "pred and tau must have compatible shapes"
-    target = target.expand_as(pred)
-    diff = target - pred
-    huber = torch.where(diff.abs() <= kappa, 0.5 * diff.pow(2), kappa * (diff.abs() - 0.5 * kappa))
-    tau = tau.view(1, -1)
-    loss = torch.abs(tau - (diff.detach() < 0).float()) * huber
-    return loss.mean()
+from copy import deepcopy
+from sklearn.metrics import f1_score
 
 
 class PolicyValueNet:
-    def __init__(self, net, discount, params=None):
+    def __init__(self, net, params=None):
         self.params = params
         self.net = net
         self.opt = self.net.opt
-        self.discount = discount
         self.device = self.net.device
         self.n_actions = net.n_actions
         if params:
@@ -41,15 +31,15 @@ class PolicyValueNet:
         return action_probs, value.flatten()[0]
 
     def train_step(self, state, prob, value, mask, max_iter):
-        value_temp = value.cpu().numpy()
+        value = deepcopy(value).type(torch.int64)
         value[value == -1] = 2
-        value = value.view(-1,).type(torch.int64)
+        value = value.view(-1,)
         ce_loss = torch.nn.CrossEntropyLoss()
         p_l, v_l = [], []
         with torch.no_grad():
             self.eval()
-            old_probs, old_v = self.policy_value(state)
-            r2_old = r_square(old_v.reshape(-1), value_temp)
+            old_probs, old_v = self.net.predict(state)
+            f1_old = f1_score(value.cpu().numpy(), old_v, average='macro')
         self.train()
         for _ in range(max_iter):
             self.opt.zero_grad()
@@ -62,11 +52,13 @@ class PolicyValueNet:
             self.opt.step()
             p_l.append(p_loss.item())
             v_l.append(v_loss.item())
+            with torch.no_grad():
+                new_probs, new_v = self.net.predict(state)
+            kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
+            if kl > 0.05:
+                break
         self.eval()
-        with torch.no_grad():
-            new_probs, new_v = self.policy_value(state)
-        kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-8) - np.log(new_probs + 1e-8)), axis=1))
-        r2_new = r_square(new_v.reshape(-1), value_temp)
+        f1_new = f1_score(value.cpu().numpy(), new_v, average='macro')
         with torch.no_grad():
             entropy = -torch.mean(torch.sum(log_p_pred.exp() * log_p_pred, dim=-1))
             total_norm = 0
@@ -74,7 +66,7 @@ class PolicyValueNet:
                 param_norm = param.grad.data.norm(2)
                 total_norm += param_norm.item() ** 2
             total_norm = total_norm ** 0.5
-        return np.mean(p_l), np.mean(v_l), float(entropy), total_norm, kl, r2_old, r2_new
+        return np.mean(p_l), np.mean(v_l), float(entropy), total_norm, kl, f1_old, f1_new
 
     def save(self, params=None):
         if params is None:

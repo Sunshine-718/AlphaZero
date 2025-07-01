@@ -43,7 +43,7 @@ class TrainPipeline:
         else:
             raise ValueError(f'Unknown model type: {model}')
         params = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
-        self.policy_value_net = PolicyValueNet(self.net, self.discount, params)
+        self.policy_value_net = PolicyValueNet(self.net, params)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, is_selfplay=1)
         self.update_best_player()
@@ -69,12 +69,12 @@ class TrainPipeline:
         batch = self.module.instant_augment(batch)
         state, prob, value, _, _, mask = batch
         
-        p_l, v_l, ent, g_n, kl, r2_old, r2_new = self.policy_value_net.train_step(state, prob, value, mask, max_iter=self.epochs)
+        p_l, v_l, ent, g_n, kl, f1_old, f1_new = self.policy_value_net.train_step(state, prob, value, mask, max_iter=self.epochs)
             
         print(f'kl: {kl: .5f}\n'
-              f'R square (old): {r2_old: .3f}\n'
-              f'R square (new): {r2_new: .3f}')
-        return p_l, v_l, ent, g_n, r2_old, r2_new, kl
+              f'F1 score (old): {f1_old: .3f}\n'
+              f'F1 score (new): {f1_new: .3f}')
+        return p_l, v_l, ent, g_n, f1_old, f1_new, kl
 
     def run(self):
         self.show_hyperparams()
@@ -90,7 +90,7 @@ class TrainPipeline:
             p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), \
                 float('inf'), float('inf')
             i += 1
-            p_loss, v_loss, entropy, grad_norm, ex_var_old, ex_var_new, kl = self.policy_update()
+            p_loss, v_loss, entropy, grad_norm, f1_old, f1_new, kl = self.policy_update()
             # self.az_player.mcts.refresh_cache(self.az_player.pv_fn)
             
             print(f'batch i: {i}, episode_len: {self.episode_len}, '
@@ -98,8 +98,8 @@ class TrainPipeline:
             # print(self.az_player.mcts.cache.hit_rate())
 
             writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
-            writer.add_scalars('Metric/Explained variance',
-                               {'Old': ex_var_old, 'New': ex_var_new}, i)
+            writer.add_scalars('Metric/F1 score',
+                               {'Old': f1_old, 'New': f1_new}, i)
             writer.add_scalar('Metric/KL Divergence', kl, i)
             writer.add_scalars(
                 'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)

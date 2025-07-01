@@ -185,7 +185,7 @@ class Connect4GUI(QWidget):
             network=self.network,
             model_type=self.model_type
         )
-        self.policy_net = PolicyValueNet(net, self.env_module.training_config['discount'], model_path)
+        self.policy_net = PolicyValueNet(net, model_path)
 
         self.az_player = AlphaZeroPlayer(
             self.policy_net,

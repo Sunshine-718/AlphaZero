@@ -7,7 +7,7 @@ import os
 try:
     # 支持多个 cython 模块编译
     ext_modules = cythonize(
-        ["env_cython.pyx", "mcts_cython.pyx"],  # ← 新增 mcts_cython
+        ["env_cython.pyx"], 
         compiler_directives={
             "language_level": "3",
             "boundscheck": False,

@@ -30,13 +30,9 @@ class CNN(Base):
                                     nn.SiLU(True),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
-                                         nn.LayerNorm(h_dim * 4),
-                                         nn.Dropout(0.1),
                                          nn.SiLU(True),
                                          nn.Linear(h_dim * 4, out_dim))
         self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
-                                        nn.LayerNorm(h_dim * 4),
-                                        nn.Dropout(0.1),
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 4, 3))
         self.device = device
@@ -56,6 +52,14 @@ class CNN(Base):
         value = self.value_head(hidden)
         return log_prob, value
     
+    def predict(self, state, mask=None):
+        self.eval()
+        with torch.no_grad():
+            log_prob, value_logit = self.forward(state, mask)
+            value_dist = F.softmax(value_logit, dim=-1)
+            value = torch.argmax(value_dist, dim=-1).cpu().numpy()
+        return log_prob.exp().cpu().numpy(), value
+
     def policy_value(self, state, mask=None):
         self.eval()
         with torch.no_grad():

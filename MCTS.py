@@ -4,8 +4,6 @@
 # Created on: 20/Jun/2025  21:55
 import math
 import numpy as np
-import random
-from lru_cache import LRUCache
 
 
 class TreeNode:
@@ -142,7 +140,6 @@ class MCTS:
 class MCTS_AZ(MCTS):
     def __init__(self, policy_value_fn, c_init=1, n_playout=1000, cache=None):
         super().__init__(policy_value_fn, c_init, n_playout)
-        self.cache = LRUCache(10000)
     
     def refresh_cache(self, policy_value_fn):
         self.cache.refresh(policy_value_fn)
@@ -175,22 +172,3 @@ class MCTS_AZ(MCTS):
         act_visits = [(action, node.n_visits)
                       for action, node in self.root.children.items()]
         return zip(*act_visits)
-    
-    def greedy_backup_value(self, env, discount=1.0):
-        root_player = env.turn
-        node, depth = self.root, 0
-
-        while not env.done() and not node.is_leaf:
-            action, node = max(node.children.items(),
-                            key=lambda p: p[1].n_visits)
-            env.step(action)
-            depth += 1
-
-        if env.done():
-            winner = env.winPlayer()     # 1 / -1 / 0
-            leaf_value = 0 if winner == 0 else (1 if winner == root_player else -1)
-        else:
-            _, raw_v = self.policy(env)
-            leaf_value = raw_v if env.turn != root_player else -raw_v
-
-        return (discount ** depth) * leaf_value
