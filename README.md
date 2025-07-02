@@ -7,6 +7,10 @@
 [`torch 2.3.0`](https://pytorch.org)  
 
 ## Get started
+### Option 1  
+Just simply run [`build.bat`](./build.bat) on Windows or [`build.sh`](./build.sh) on UNIX-like systems.  
+
+### Option 2  
 Run the command lines below in terminal.
 ``` shell
 pip install -r requirements.txt
