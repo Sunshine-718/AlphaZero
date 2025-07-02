@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Written by: Sunshine
 # Created on: 14/Jul/2024  21:00
+import os
 import torch
 import numpy as np
 from utils import Elo
@@ -48,6 +49,8 @@ class TrainPipeline:
                                          n_playout=self.n_playout, is_selfplay=1)
         self.update_best_player()
         self.elo = Elo(self.init_elo, 1500)
+        if not os.path.exists('params'):
+            os.makedirs('params')
 
     def data_collector(self, n_games=1):
         self.policy_value_net.eval()
