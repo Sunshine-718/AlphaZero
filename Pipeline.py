@@ -65,7 +65,7 @@ class TrainPipeline:
         assert self.episode_len <= 42
 
     def policy_update(self):
-        batch = self.buffer.sample(self.batch_size)
+        batch = self.buffer.sample_balanced(self.batch_size)
         batch = self.module.instant_augment(batch)
         state, prob, value, _, _, mask = batch
         

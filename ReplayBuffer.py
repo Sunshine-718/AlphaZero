@@ -92,3 +92,25 @@ class ReplayBuffer:
                                 self.done[idx],
                                 self.mask[idx])
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    
+    def sample_balanced(self, batch_size):
+        values = self.value[:self.__len__()].squeeze()  # [N]
+        unique_vals = torch.unique(values)
+        n_types = unique_vals.numel()
+        n_per_type = batch_size // n_types
+        remainder = batch_size % n_types
+
+        indices = []
+        for i, val in enumerate(unique_vals):
+            idxs = (values == val).nonzero(as_tuple=True)[0]
+            if len(idxs) == 0:
+                continue
+            size = n_per_type + (1 if i < remainder else 0)
+            choice = idxs[torch.randint(0, len(idxs), (size,))]
+            indices.append(choice)
+        if len(indices) == 0:
+            raise ValueError("No available data to sample.")
+        indices = torch.cat(indices)
+        indices = indices[torch.randperm(len(indices))]
+        return self.state[indices], self.prob[indices], self.value[indices], \
+            self.next_state[indices], self.done[indices], self.mask[indices]
