@@ -74,10 +74,14 @@ class ReplayBuffer:
         self.mask[idx] = mask
         return idx
     
+    def get(self, indices):
+        return self.state[indices], self.prob[indices], self.value[indices], \
+            self.next_state[indices], self.done[indices], self.mask[indices]
+    
     def sample(self, batch_size):
         idx = torch.from_numpy(np.random.randint(
             0, self.__len__(), batch_size, dtype=np.int64))
-        return self.state[idx], self.prob[idx, :], self.value[idx, :], self.next_state[idx], self.done[idx], self.mask[idx]
+        return self.get(idx)
 
     def dataloader(self, batch_size):
         total = self.__len__()
@@ -85,12 +89,7 @@ class ReplayBuffer:
             total = int(self.__len__() * self.replay_ratio)
         idx = torch.from_numpy(np.random.randint(
             0, self.__len__(), total, dtype=np.int64))
-        dataset = TensorDataset(self.state[idx],
-                                self.prob[idx],
-                                self.value[idx],
-                                self.next_state[idx],
-                                self.done[idx],
-                                self.mask[idx])
+        dataset = TensorDataset(self.get(idx))
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
     def sample_balanced(self, batch_size):
@@ -112,5 +111,4 @@ class ReplayBuffer:
             raise ValueError("No available data to sample.")
         indices = torch.cat(indices)
         indices = indices[torch.randperm(len(indices))]
-        return self.state[indices], self.prob[indices], self.value[indices], \
-            self.next_state[indices], self.done[indices], self.mask[indices]
+        return self.get(indices)
