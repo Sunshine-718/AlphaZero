@@ -45,22 +45,18 @@ class Game:
                 winner = self.env.winPlayer()
                 if show:
                     if winner != 0:
-                        print('Game end. Winner is', [None, 'X', 'O'][int(winner)])
+                        print('Game end. Winner is', (None, 'X', 'O')[int(winner)])
                     else:
                         print('Game end. Draw')
                 return winner
 
-    def start_self_play(self, player, temp=1, first_n_steps=5, show=0, dirichlet_alpha=0.3):
+    def start_self_play(self, player, temp=1, first_n_steps=5):
         self.env.reset()
         states, mcts_probs, current_players, next_states, masks = [], [], [], [], []
         steps = 0
         while True:
-            if steps < first_n_steps:
-                action, probs = player.get_action(
-                    self.env, temp, dirichlet_alpha)
-            else:
-                action, probs = player.get_action(
-                    self.env, 1e-3, dirichlet_alpha)
+            temperature = 1e-3 if steps >= first_n_steps else temp
+            action, probs = player.get_action(self.env, temperature)
             steps += 1
             states.append(self.env.current_state())
             masks.append(self.env.valid_mask())
@@ -68,19 +64,12 @@ class Game:
             current_players.append(self.env.turn)
             self.env.step(action)
             next_states.append(self.env.current_state())
-            if show:
-                self.env.show()
             if self.env.done():
                 winner = self.env.winPlayer()
                 winner_z = np.zeros(len(current_players))
                 if winner != 0:
                     winner_z[np.array(current_players) == winner] = 1
                     winner_z[np.array(current_players) != winner] = -1
-                if show:
-                    if winner != 0:
-                        print(f"Game end. Wineer is Player: {[None, 'X', 'O'][int(winner)]}")
-                    else:
-                        print('Game end. Draw')
                 dones = [False]*len(winner_z)
                 dones[-1] = True
                 return winner, zip(states, mcts_probs, winner_z, next_states, dones, masks)

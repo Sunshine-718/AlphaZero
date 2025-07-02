@@ -7,12 +7,12 @@ training_config = {
     "buffer_size": 10000,
     "batch_size": 512,
     "play_batch_size": 1,
-    "epochs": 10,
+    "epochs": 5,
     "pure_mcts_n_playout": 1000,
-    "dirichlet_alpha": 0.15,   # depends on the size of action space
+    "dirichlet_alpha": 0.03,
     "init_elo": 1500,
     "num_eval": 50,
-    "win_rate_threshold": 0.7,
+    "win_rate_threshold": 0.641,
 }
 
 env_config = {'row': 6, 

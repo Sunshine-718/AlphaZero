@@ -69,59 +69,6 @@ class CNN(Base):
         return log_prob.exp().cpu().numpy(), value.cpu().numpy()
 
 
-class CNN_old(Base):
-    def __init__(self, lr, in_dim=3, h_dim=128, out_dim=7, device='cpu'):
-        super().__init__()
-        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2), bias=True),
-                                    nn.BatchNorm2d(h_dim),
-                                    nn.SiLU(True),
-                                    nn.Conv2d(h_dim, h_dim * 2,
-                                              kernel_size=(3, 4), bias=True),
-                                    nn.BatchNorm2d(h_dim * 2),
-                                    nn.SiLU(True),
-                                    nn.Conv2d(h_dim * 2, h_dim * 4,
-                                              kernel_size=(3, 3), bias=True),
-                                    nn.BatchNorm2d(h_dim * 4),
-                                    nn.SiLU(True),
-                                    nn.Conv2d(h_dim * 4, h_dim * 8,
-                                              kernel_size=(4, 4), bias=True),
-                                    nn.BatchNorm2d(h_dim * 8),
-                                    nn.SiLU(True),
-                                    nn.Flatten())
-        self.policy_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 4, bias=True),
-                                         nn.BatchNorm1d(h_dim * 4),
-                                         nn.SiLU(True),
-                                         nn.Linear(
-                                             h_dim * 4, h_dim * 4, bias=True),
-                                         nn.BatchNorm1d(h_dim * 4),
-                                         nn.SiLU(True),
-                                         nn.Linear(h_dim * 4, out_dim))
-        self.value_head = nn.Sequential(nn.Linear(h_dim * 8, h_dim * 4, bias=True),
-                                        nn.BatchNorm1d(h_dim * 4),
-                                        nn.SiLU(True),
-                                        nn.Linear(
-                                            h_dim * 4, h_dim * 4, bias=True),
-                                        nn.BatchNorm1d(h_dim * 4),
-                                        nn.SiLU(True),
-                                        nn.Linear(h_dim * 4, 1))
-        self.device = device
-        self.n_actions = out_dim
-        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
-        self.weight_init()
-        self.to(self.device)
-
-    def name(self):
-        return 'CNN'
-
-    def forward(self, x, mask=None):
-        hidden = self.hidden(x)
-        prob_logit = self.policy_head(hidden)
-        if mask is not None:
-            prob_logit.masked_fill_(~mask, -float('inf'))
-        log_prob = F.log_softmax(prob_logit, dim=-1)
-        return log_prob, self.value_head(hidden)
-
-
 class PatchEmbedding(nn.Module):
     def __init__(self, in_channels=3, embed_dim=128):
         super().__init__()

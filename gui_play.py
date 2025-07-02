@@ -34,7 +34,6 @@ COLOR_MAP = {
 }
 # ================================================
 
-import sys
 import time
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QSpinBox, QComboBox, QPushButton, QCheckBox
 from PyQt5.QtGui import QPainter
@@ -193,6 +192,7 @@ class Connect4GUI(QWidget):
             n_playout=self.n_playout,
             is_selfplay=0,
         )
+        self.az_player.eval()
         self.human = Human(self.policy_net)
 
     def start_game(self):
@@ -318,7 +318,6 @@ class Connect4GUI(QWidget):
             return
         start = time.time()
         action, probs = self.az_player.get_action(self.env)
-        print(self.az_player.mcts.cache.hit_rate())
         self.ai_thinking_time = time.time() - start
         self.thinking_time_label.setText(f"AI 思考时间: {self.ai_thinking_time:.2f} 秒")
         self.last_probs = probs if self.show_probs else None

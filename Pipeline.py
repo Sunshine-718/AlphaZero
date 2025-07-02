@@ -46,7 +46,7 @@ class TrainPipeline:
         params = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
         self.policy_value_net = PolicyValueNet(self.net, params)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
-                                         n_playout=self.n_playout, is_selfplay=1)
+                                         n_playout=self.n_playout, alpha=self.dirichlet_alpha, is_selfplay=1)
         self.update_best_player()
         self.elo = Elo(self.init_elo, 1500)
         if not os.path.exists('params'):
@@ -59,7 +59,7 @@ class TrainPipeline:
         with torch.no_grad():
             for _ in trange(n_games):
                 _, play_data = self.game.start_self_play(
-                    self.az_player, temp=self.temp, first_n_steps=self.first_n_steps, dirichlet_alpha=self.dirichlet_alpha)
+                    self.az_player, temp=self.temp, first_n_steps=self.first_n_steps)
                 play_data = list(play_data)[:]
                 episode_len.append(len(play_data)) 
                 for data in play_data:
@@ -145,7 +145,8 @@ class TrainPipeline:
         self.policy_value_net.eval()
         current_az_player = AlphaZeroPlayer(self.policy_value_net,
                                             self.c_puct,
-                                            self.n_playout)
+                                            self.n_playout,
+                                            self.dirichlet_alpha)
         current_az_player.eval()
         mcts_player = MCTSPlayer(1, self.pure_mcts_n_playout)
         winner = self.game.start_play(
@@ -201,8 +202,8 @@ class TrainPipeline:
 
     def update_best_player(self):
         self.best_net = deepcopy(self.policy_value_net)
-        self.best_player = AlphaZeroPlayer(
-            self.best_net, c_puct=self.c_puct, n_playout=self.n_playout)
+        self.best_player = AlphaZeroPlayer(self.best_net, c_puct=self.c_puct, 
+                                           n_playout=self.n_playout, alpha=self.dirichlet_alpha)
 
     def __call__(self):
         self.run()

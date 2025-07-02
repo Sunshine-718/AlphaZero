@@ -92,9 +92,9 @@ class MCTSPlayer(Player):
 
 
 class AlphaZeroPlayer(MCTSPlayer):
-    def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, is_selfplay=0):
+    def __init__(self, policy_value_fn, c_puct=1.5, n_playout=1000, alpha=None, is_selfplay=0):
         self.pv_fn = policy_value_fn
-        self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout)
+        self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout, alpha)
         self.is_selfplay = is_selfplay
         self.n_actions = policy_value_fn.n_actions
 
@@ -104,9 +104,9 @@ class AlphaZeroPlayer(MCTSPlayer):
     def eval(self):
         self.mcts.eval()
 
-    def get_action(self, env, temp=0, dirichlet_alpha=0.3):
+    def get_action(self, env, temp=0):
         action_probs = np.zeros((self.n_actions,), dtype=np.float32)
-        actions, visits = self.mcts.get_action_visits(env, dirichlet_alpha)
+        actions, visits = self.mcts.get_action_visits(env)
         if temp == 0:
             probs = np.zeros((len(visits),), dtype=np.float32)
             probs[np.where(np.array(visits) == max(visits))] = 1 / list(visits).count(max(visits))

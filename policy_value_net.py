@@ -18,6 +18,7 @@ class PolicyValueNet:
         self.n_actions = net.n_actions
         if params:
             self.net.load(params)
+        self.eval()
 
     def policy_value(self, state):
         return self.net.policy_value(state)

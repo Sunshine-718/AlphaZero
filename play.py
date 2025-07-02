@@ -49,7 +49,7 @@ if __name__ == '__main__':
             az_player = NetworkPlayer(policy_value_net)
         else:
             az_player = AlphaZeroPlayer(policy_value_net, c_puct=config['c_puct'],
-                                        n_playout=args.n, is_selfplay=0)
+                                        n_playout=args.n, alpha=config['dirichlet_alpha'], is_selfplay=0)
         az_player.eval()
 
         human = Human(policy_net=az_player.pv_fn if args.show_nn else None)

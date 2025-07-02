@@ -55,8 +55,3 @@ def rollout_policy_fn(env):
 def softmax(x):
     probs = np.exp(x - np.max(x))
     return probs / np.sum(probs)
-
-
-def r_square(pred, target):
-    target = target.flatten()
-    return 1 - np.var(target - pred.flatten()) / np.maximum(np.var(target), 1e-8)

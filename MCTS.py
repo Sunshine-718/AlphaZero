@@ -44,8 +44,6 @@ class TreeNode:
         return self.parent is None
 
     def PUCT(self, c_init, c_base):
-        if self.parent is None:
-            raise RuntimeError('PUCT cannot be called in root node.')
         prior = 0.75 * self.prior + 0.25 * self.noise
         if self.n_visits == 0:
             self.u = float('inf')
@@ -55,8 +53,6 @@ class TreeNode:
         return -self.Q + self.u
     
     def UCT(self, c_init, c_base):
-        if self.parent is None:
-            raise RuntimeError('UCT cannot be called in root node.')
         if self.n_visits == 0:
             self.u = float('inf')
         else:
@@ -90,22 +86,22 @@ class TreeNode:
 
 
 class MCTS:
-    def __init__(self, policy_value_fn, c_init=1.5, n_playout=1000):
+    def __init__(self, policy_value_fn, c_init=1.5, n_playout=1000, alpha=None):
         self.root = TreeNode(None, 1, None)
         self.policy = policy_value_fn
         self.c_init = c_init
         self.c_base = n_playout / 800 * 19652
         self.n_playout = n_playout
-
-    @property
-    def Q(self):
-        return self.root.Q
+        self.alpha = alpha
+        self.deterministic = False
 
     def train(self):
         self.root.train()
+        self.deterministic = False
 
     def eval(self):
         self.root.eval()
+        self.deterministic = True
 
     def select_leaf_node(self, env, UCT=False):
         node = self.root
@@ -138,13 +134,10 @@ class MCTS:
 
 
 class MCTS_AZ(MCTS):
-    def __init__(self, policy_value_fn, c_init=1, n_playout=1000):
-        super().__init__(policy_value_fn, c_init, n_playout)
+    def __init__(self, policy_value_fn, c_init=1, n_playout=1000, alpha=None):
+        super().__init__(policy_value_fn, c_init, n_playout, alpha)
     
-    def refresh_cache(self, policy_value_fn):
-        self.cache.refresh(policy_value_fn)
-    
-    def playout(self, env, alpha=None):
+    def playout(self, env):
         noise = None
         node = self.select_leaf_node(env)
         env_aug, flipped = env.random_flip()
@@ -152,12 +145,9 @@ class MCTS_AZ(MCTS):
         if flipped:
             action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
         if not env.done():
-            if alpha is not None:
-                noise = np.random.dirichlet([alpha for _ in action_probs])
-            try:
-                node.expand(action_probs, noise)
-            except TypeError:
-                print(action_probs)
+            if self.alpha is not None and not self.deterministic:
+                noise = np.random.dirichlet([self.alpha for _ in action_probs])
+            node.expand(action_probs, noise)
         else:
             winner = env.winPlayer()
             if winner == 0:
@@ -166,9 +156,10 @@ class MCTS_AZ(MCTS):
                 leaf_value = (1 if winner == env.turn else -1)
         node.update(leaf_value)
     
-    def get_action_visits(self, env, alpha=None):
+    def get_action_visits(self, env):
+        assert((self.alpha is not None) or (self.alpha is None and self.deterministic))
         for _ in range(self.n_playout):
-            self.playout(env.copy(), alpha)
+            self.playout(env.copy())
         act_visits = [(action, node.n_visits)
                       for action, node in self.root.children.items()]
         return zip(*act_visits)
