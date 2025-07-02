@@ -134,9 +134,6 @@ class MCTS:
 
 
 class MCTS_AZ(MCTS):
-    def __init__(self, policy_value_fn, c_init=1, n_playout=1000, alpha=None):
-        super().__init__(policy_value_fn, c_init, n_playout, alpha)
-    
     def playout(self, env):
         noise = None
         node = self.select_leaf_node(env)
