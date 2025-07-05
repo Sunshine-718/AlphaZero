@@ -9,10 +9,11 @@ import torch.nn.functional as F
 from torch.optim import NAdam
 from einops import rearrange
 from ..NetworkBase import Base
+from .config import network_config as config
 
 
 class CNN(Base):
-    def __init__(self, lr, in_dim=3, h_dim=64, out_dim=7, device='cpu'):
+    def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
                                     nn.BatchNorm2d(h_dim),
@@ -30,9 +31,11 @@ class CNN(Base):
                                     nn.SiLU(True),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
+                                         nn.LayerNorm(h_dim * 4),
                                          nn.SiLU(True),
                                          nn.Linear(h_dim * 4, out_dim))
         self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
+                                        nn.LayerNorm(h_dim * 4),
                                         nn.SiLU(True),
                                         nn.Linear(h_dim * 4, 3))
         self.device = device
