@@ -4,7 +4,7 @@
 # Created on: 10/Aug/2024  23:47
 import numpy as np
 from abc import abstractmethod, ABC
-from utils import softmax, policy_value_fn
+from utils import policy_value_fn, softmax
 from MCTS import MCTS, MCTS_AZ
 
 
@@ -107,7 +107,7 @@ class AlphaZeroPlayer(MCTSPlayer):
     def get_action(self, env, temp=0):
         action_probs = np.zeros((self.n_actions,), dtype=np.float32)
         actions, visits = self.mcts.get_action_visits(env)
-        visit_dist = softmax(np.log(np.array(visits) + 1e-8) / temp)
+        visit_dist = softmax(np.log(visits) / max(temp, 1e-8))
         action_probs[list(actions)] = visit_dist
         if temp == 0:
             probs = np.zeros((len(visits),), dtype=np.float32)
