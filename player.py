@@ -107,13 +107,14 @@ class AlphaZeroPlayer(MCTSPlayer):
     def get_action(self, env, temp=0):
         action_probs = np.zeros((self.n_actions,), dtype=np.float32)
         actions, visits = self.mcts.get_action_visits(env)
+        visit_dist = softmax(np.log(np.array(visits) + 1e-8) / temp)
+        action_probs[list(actions)] = visit_dist
         if temp == 0:
             probs = np.zeros((len(visits),), dtype=np.float32)
             probs[np.where(np.array(visits) == max(visits))] = 1 / list(visits).count(max(visits))
         else:
-            probs = softmax(np.log(np.array(visits) + 1e-8) / temp)
+            probs = visit_dist
         action = np.random.choice(actions, p=probs)
-        action_probs[list(actions)] = probs
         if self.is_selfplay:
             self.mcts.prune_root(action)
         else:
