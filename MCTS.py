@@ -160,3 +160,24 @@ class MCTS_AZ(MCTS):
         act_visits = [(action, node.n_visits)
                       for action, node in self.root.children.items()]
         return zip(*act_visits)
+
+
+    def A0GB_target(self, env):
+        env = env.copy()
+        root_player = env.turn
+        node, depth = self.root, 0
+        while not env.done() and not node.is_leaf:
+            action, node = max(node.children.items(),
+                            key=lambda p: p[1].n_visits)
+            env.step(action)
+            depth += 1
+        if env.done():
+            winner = env.winPlayer()
+            leaf_value = 0 if winner == 0 else (1 if winner == root_player else -1)
+        else:
+            _, raw_v = self.policy(env)
+            leaf_value = raw_v if env.turn == root_player else -raw_v
+        return leaf_value
+    
+    def soft_z_target(self):
+        return self.root.Q

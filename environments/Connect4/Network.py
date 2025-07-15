@@ -12,23 +12,29 @@ from ..NetworkBase import Base
 from .config import network_config as config
 
 
-class CNN(Base):
-    def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, device='cpu'):
+class ResidualBlock(nn.Module):
+    def __init__(self, in_dim, out_dim, kernel_size, padding=0, residual=True):
         super().__init__()
-        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=(3, 3), padding=(2, 2)),
-                                    nn.BatchNorm2d(h_dim),
-                                    nn.Dropout2d(0.1),
-                                    nn.SiLU(True),
-                                    nn.Conv2d(h_dim, h_dim * 2,
-                                              kernel_size=(4, 5)),
-                                    nn.BatchNorm2d(h_dim * 2),
-                                    nn.Dropout2d(0.1),
-                                    nn.SiLU(True),
-                                    nn.Conv2d(h_dim * 2, h_dim * 4,
-                                              kernel_size=(5, 5)),
-                                    nn.BatchNorm2d(h_dim * 4),
-                                    nn.Dropout2d(0.1),
-                                    nn.SiLU(True),
+        self.net = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, padding=padding),
+                                 nn.BatchNorm2d(out_dim),
+                                 nn.SiLU(True))
+        self.residual = residual
+    
+    def forward(self, x):
+        if self.residual:
+            return x + self.net(x)
+        else:
+            return self.net(x)
+
+
+class CNN(Base):
+    def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, num_quantiles=51, device='cpu'):
+        super().__init__()
+        self.hidden = nn.Sequential(ResidualBlock(in_dim, h_dim, (3, 3), (2, 2), False),
+                                    ResidualBlock(h_dim, h_dim * 2, (4, 5), 0, False),
+                                    ResidualBlock(h_dim * 2, h_dim * 2, (3, 3), (1, 1)),
+                                    ResidualBlock(h_dim * 2, h_dim * 2, (3, 3), (1, 1)),
+                                    ResidualBlock(h_dim * 2, h_dim * 4, (5, 5), residual=False),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
                                          nn.LayerNorm(h_dim * 4),
@@ -37,7 +43,9 @@ class CNN(Base):
         self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
                                         nn.LayerNorm(h_dim * 4),
                                         nn.SiLU(True),
-                                        nn.Linear(h_dim * 4, 3))
+                                        nn.Linear(h_dim * 4, num_quantiles),
+                                        nn.Tanh())
+        self.num_quantiles = num_quantiles
         self.device = device
         self.n_actions = out_dim
         self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
@@ -58,17 +66,8 @@ class CNN(Base):
     def predict(self, state, mask=None):
         self.eval()
         with torch.no_grad():
-            log_prob, value_logit = self.forward(state, mask)
-            value_dist = F.softmax(value_logit, dim=-1)
-            value = torch.argmax(value_dist, dim=-1).cpu().numpy()
-        return log_prob.exp().cpu().numpy(), value
-
-    def policy_value(self, state, mask=None):
-        self.eval()
-        with torch.no_grad():
-            log_prob, value_logit = self.forward(state, mask)
-            value_dist = F.softmax(value_logit, dim=-1)
-            value = torch.sum(torch.tensor([[0, 1, -1]], device=self.device) * value_dist, dim=-1, keepdim=True)
+            log_prob, value = self.forward(state, mask)
+            value = value.mean(dim=-1, keepdim=True)
         return log_prob.exp().cpu().numpy(), value.cpu().numpy()
 
 

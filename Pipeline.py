@@ -68,16 +68,12 @@ class TrainPipeline:
         assert self.episode_len <= 42
 
     def policy_update(self):
-        batch = self.buffer.sample_balanced(self.batch_size)
-        batch = self.module.instant_augment(batch)
-        state, prob, value, _, _, mask = batch
+        dataloader = self.buffer.dataloader(self.batch_size)
         
-        p_l, v_l, ent, g_n, kl, f1_old, f1_new = self.policy_value_net.train_step(state, prob, value, mask, max_iter=self.epochs)
+        p_l, v_l, ent, g_n, r2 = self.policy_value_net.train_step(dataloader, self.module.instant_augment)
             
-        print(f'kl: {kl: .5f}\n'
-              f'F1 score (old): {f1_old: .3f}\n'
-              f'F1 score (new): {f1_new: .3f}')
-        return p_l, v_l, ent, g_n, f1_old, f1_new, kl
+        print(f'R2 score (new): {r2: .3f}')
+        return p_l, v_l, ent, g_n, r2
 
     def run(self):
         self.show_hyperparams()
@@ -93,17 +89,13 @@ class TrainPipeline:
             p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), \
                 float('inf'), float('inf')
             i += 1
-            p_loss, v_loss, entropy, grad_norm, f1_old, f1_new, kl = self.policy_update()
-            # self.az_player.mcts.refresh_cache(self.az_player.pv_fn)
+            p_loss, v_loss, entropy, grad_norm, r2 = self.policy_update()
             
             print(f'batch i: {i}, episode_len: {self.episode_len}, '
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
-            # print(self.az_player.mcts.cache.hit_rate())
 
             writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
-            writer.add_scalars('Metric/F1 score',
-                               {'Old': f1_old, 'New': f1_new}, i)
-            writer.add_scalar('Metric/KL Divergence', kl, i)
+            writer.add_scalar('Metric/R2 score', r2, i)
             writer.add_scalars(
                 'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
             writer.add_scalar('Metric/Entropy', entropy, i)
