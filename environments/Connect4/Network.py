@@ -15,16 +15,18 @@ from .config import network_config as config
 class ResidualBlock(nn.Module):
     def __init__(self, in_dim, out_dim, kernel_size, padding=0, residual=True):
         super().__init__()
-        self.net = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, padding=padding),
-                                 nn.BatchNorm2d(out_dim),
-                                 nn.SiLU(True))
+        self.conv = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=(1, 1)),
+                                  nn.BatchNorm2d(out_dim),
+                                  nn.SiLU(True),
+                                  nn.Conv2d(out_dim, out_dim, kernel_size=kernel_size, padding=padding))
+        self.norm = nn.BatchNorm2d(out_dim)
         self.residual = residual
     
     def forward(self, x):
         if self.residual:
-            return x + self.net(x)
+            return F.silu(self.norm(x + self.conv(x)))
         else:
-            return self.net(x)
+            return F.silu(self.norm(self.conv(x)))
 
 
 class CNN(Base):
