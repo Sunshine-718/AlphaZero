@@ -6,9 +6,12 @@ from ..NetworkBase import Base
 
 
 class CNN(Base):
-    def __init__(self, lr=1e-3, in_dim=3, h_dim=64, out_dim=9, num_quantiles=51, device='cpu'):
+    def __init__(self, lr=1e-3, in_dim=3, h_dim=128, out_dim=9, num_quantiles=51, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(nn.Linear(in_dim * 3 * 3, h_dim),
+                                    nn.BatchNorm1d(h_dim),
+                                    nn.SiLU(True),
+                                    nn.Linear(h_dim, h_dim),
                                     nn.BatchNorm1d(h_dim),
                                     nn.SiLU(True),
                                     nn.Linear(h_dim, h_dim),

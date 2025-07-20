@@ -44,7 +44,8 @@ class TreeNode:
         return self.parent is None
 
     def PUCT(self, c_init, c_base):
-        prior = 0.75 * self.prior + 0.25 * self.noise
+        eps = 0.1
+        prior = (1 - eps) * self.prior + eps * self.noise
         if self.n_visits == 0:
             self.u = float('inf')
         else:
