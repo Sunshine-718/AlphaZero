@@ -54,14 +54,13 @@ class PolicyValueNet:
         p_l, v_l = [], []
         self.train()
         for batch in dataloader:
-            state, prob, value, _, _, _ = augment(batch) 
+            state, prob, value, _, _, _ = augment(batch)
             self.opt.zero_grad()
             log_p_pred, value_pred = self.net(state)
             v_loss = quantile_loss(value_pred, value, self.tau)
             p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
             loss = p_loss + v_loss
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.net.parameters(), 1)
             self.opt.step()
             p_l.append(p_loss.item())
             v_l.append(v_loss.item())

@@ -5,7 +5,6 @@
 import torch
 import numpy as np
 from numba import njit
-from copy import deepcopy
 
 
 @njit(fastmath=True)

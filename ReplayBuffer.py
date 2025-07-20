@@ -89,13 +89,14 @@ class ReplayBuffer:
             total = int(self.__len__() * self.replay_ratio)
         idx = torch.from_numpy(np.random.randint(
             0, self.__len__(), total, dtype=np.int64))
-        dataset = TensorDataset(self.get(idx))
+        dataset = TensorDataset(*self.get(idx))
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
     def sample_balanced(self, batch_size):
         values = self.value[:self.__len__()].squeeze()  # [N]
         unique_vals = torch.unique(values)
         n_types = unique_vals.numel()
+        assert(n_types <= 3)
         n_per_type = batch_size // n_types
         remainder = batch_size % n_types
 

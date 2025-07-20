@@ -18,7 +18,7 @@ from tqdm.auto import trange
 
 class TrainPipeline:
     def __init__(self, env_name='Connect4', model='CNN', name='AZ'):
-        collection = ('Connect4', )  # NBTTT implementation not yet finished.
+        collection = ('Connect4', 'TTT')  # NBTTT implementation not yet finished.
         if env_name not in collection:
             raise ValueError(
                 f'Environment does not exist, available env: {collection}')
@@ -110,7 +110,7 @@ class TrainPipeline:
             writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': r_a,
                                               f'MCTS_{self.pure_mcts_n_playout}': r_b}, i)
 
-            if self.env_name == 'Connect4':
+            if self.env_name in ('Connect4', 'TTT'):
                 p0, v0, p1, v1 = self.module.inspect(self.policy_value_net.net)
                 writer.add_scalars('Metric/Initial Value',
                                    {'X': v0, 'O': v1}, i)
