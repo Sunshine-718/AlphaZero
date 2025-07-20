@@ -12,31 +12,24 @@ from ..NetworkBase import Base
 from .config import network_config as config
 
 
-class ResidualBlock(nn.Module):
-    def __init__(self, in_dim, out_dim, kernel_size, padding=0, residual=True):
+class Block(nn.Module):
+    def __init__(self, in_dim, out_dim, kernel_size, padding=0):
         super().__init__()
-        self.conv = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=(1, 1)),
+        self.conv = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, padding=padding),
                                   nn.BatchNorm2d(out_dim),
-                                  nn.SiLU(True),
-                                  nn.Conv2d(out_dim, out_dim, kernel_size=kernel_size, padding=padding))
-        self.norm = nn.BatchNorm2d(out_dim)
-        self.residual = residual
+                                  nn.SiLU(True))
     
     def forward(self, x):
-        if self.residual:
-            return F.silu(self.norm(x + self.conv(x)))
-        else:
-            return F.silu(self.norm(self.conv(x)))
+        return self.conv(x)
 
 
 class CNN(Base):
     def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, num_quantiles=51, device='cpu'):
         super().__init__()
-        self.hidden = nn.Sequential(ResidualBlock(in_dim, h_dim, (3, 3), (2, 2), False),
-                                    ResidualBlock(h_dim, h_dim * 2, (4, 5), 0, False),
-                                    ResidualBlock(h_dim * 2, h_dim * 2, (3, 3), (1, 1)),
-                                    ResidualBlock(h_dim * 2, h_dim * 2, (3, 3), (1, 1)),
-                                    ResidualBlock(h_dim * 2, h_dim * 4, (5, 5), residual=False),
+        self.hidden = nn.Sequential(Block(in_dim, h_dim, (3, 3), (2, 2)),
+                                    Block(h_dim, h_dim * 2, (4, 5)),
+                                    Block(h_dim * 2, h_dim * 2, (3, 3)),
+                                    Block(h_dim * 2, h_dim * 4, (3, 3)),
                                     nn.Flatten())
         self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
                                          nn.LayerNorm(h_dim * 4),

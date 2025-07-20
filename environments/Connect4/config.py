@@ -1,11 +1,11 @@
 training_config = {
     "lr": 1e-3,
     "temp": 1.0,
-    "n_playout": 50,
+    "n_playout": 100,
     "first_n_steps": 12,
     "c_puct": 1.5,
     "buffer_size": 10000,
-    "batch_size": 512,
+    "batch_size": 128,
     "play_batch_size": 1,
     "pure_mcts_n_playout": 1000,
     "dirichlet_alpha": 0.3,
