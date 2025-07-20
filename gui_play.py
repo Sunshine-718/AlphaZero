@@ -5,7 +5,7 @@ from PyQt5.QtGui import QColor
 
 ENV_NAME = 'Connect4'
 NETWORK_DEFAULT = 'CNN'
-MODEL_NAME = 'AZ2'
+MODEL_NAME = 'AZ'
 MODEL_TYPE_DEFAULT = 'current'
 N_PLAYOUT_DEFAULT = 500
 N_PLAYOUT_MIN = 1
