@@ -9,7 +9,7 @@ training_config = {
     "play_batch_size": 1,
     "pure_mcts_n_playout": 1000,
     "dirichlet_alpha": 0.7,
-    "init_elo": 0,
+    "init_elo": 1500,
     "num_eval": 50,
     "win_rate_threshold": 0.65,
 }
