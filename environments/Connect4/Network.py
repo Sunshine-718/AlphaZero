@@ -13,35 +13,40 @@ from .config import network_config as config
 
 
 class Block(nn.Module):
-    def __init__(self, in_dim, out_dim, kernel_size, padding=0):
+    def __init__(self, in_dim, out_dim):
         super().__init__()
-        self.conv = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, padding=padding, bias=False),
+        self.conv = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=3, padding=1, bias=False),
                                   nn.BatchNorm2d(out_dim),
                                   nn.SiLU(True),
-                                  nn.Dropout2d(0.1))
+                                  nn.Dropout2d(0.1),
+                                  nn.Conv2d(out_dim, out_dim, kernel_size=1, padding=0, bias=False),
+                                  nn.BatchNorm2d(out_dim))
     
     def forward(self, x):
-        return self.conv(x)
+        return F.silu(x + self.conv(x))
 
 
 class CNN(Base):
     def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, num_quantiles=32, device='cpu'):
         super().__init__()
-        self.hidden = nn.Sequential(Block(in_dim, h_dim, (3, 3), (2, 2)),
-                                    Block(h_dim, h_dim * 2, (4, 5)),
-                                    Block(h_dim * 2, h_dim * 2, (3, 3)),
-                                    Block(h_dim * 2, h_dim * 4, (3, 3)))
-        self.policy_head = nn.Sequential(nn.Conv2d(h_dim * 4, h_dim, kernel_size=1, bias=False),
-                                         nn.BatchNorm2d(h_dim),
+        self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=3, padding=1, bias=False),
+                                    nn.BatchNorm2d(h_dim),
+                                    nn.SiLU(True),
+                                    nn.Dropout2d(0.1),
+                                    Block(h_dim, h_dim),
+                                    Block(h_dim, h_dim),
+                                    Block(h_dim, h_dim))
+        self.policy_head = nn.Sequential(nn.Conv2d(h_dim, 3, kernel_size=1, bias=False),
+                                         nn.BatchNorm2d(3),
                                          nn.SiLU(True),
                                          nn.Flatten(),
-                                         nn.Linear(h_dim, out_dim),
+                                         nn.Linear(3 * 6 * 7, out_dim),
                                          nn.LogSoftmax(dim=-1))
-        self.value_head = nn.Sequential(nn.Conv2d(h_dim * 4, h_dim, kernel_size=1, bias=False),
-                                         nn.BatchNorm2d(h_dim),
+        self.value_head = nn.Sequential(nn.Conv2d(h_dim, 1, kernel_size=1, bias=False),
+                                         nn.BatchNorm2d(1),
                                          nn.SiLU(True),
                                          nn.Flatten(),
-                                         nn.Linear(h_dim, num_quantiles),
+                                         nn.Linear(6 * 7, num_quantiles),
                                          nn.Tanh())
         self.num_quantiles = num_quantiles
         self.device = device
