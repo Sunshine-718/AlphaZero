@@ -5,6 +5,7 @@
 import torch
 import numpy as np
 from numba import njit
+from copy import deepcopy
 
 
 @njit(fastmath=True)
@@ -66,14 +67,12 @@ def inspect(net, board=None):
     with torch.no_grad():
         state0 = torch.from_numpy(board_to_state(
             board, 1)).float().to(net.device)
-        mask0 = torch.tensor(valid_mask(board), dtype=torch.bool, device=net.device).unsqueeze(0)
-        probs0, value0 = net.policy_value(state0, mask0)
+        probs0, value0 = net.predict(state0)
         probs0, value0 = probs0.flatten(), float(value0[0, 0])
         board[5, 3] = 1
         state1 = torch.from_numpy(board_to_state(
             board, -1)).float().to(net.device)
-        mask1 = torch.tensor(valid_mask(board), dtype=torch.bool, device=net.device).unsqueeze(0)
-        probs1, value1 = net.policy_value(state1, mask1)
+        probs1, value1 = net.predict(state1)
         probs1, value1 = probs1.flatten(), float(value1[0, 0])
     for (idx, pX), (_, pO) in zip(enumerate(probs0), enumerate(probs1)):
         print_row(idx, pX, pO, np.max(probs0), np.max(probs1))
@@ -82,21 +81,20 @@ def inspect(net, board=None):
 
 
 def instant_augment(batch):
-    state, prob, value, next_state, done, mask = batch
+    state, prob, value, next_state, done, n = batch
 
     state_flipped = torch.flip(state, dims=[3])
     next_state_flipped = torch.flip(next_state, dims=[3])
     prob_flipped = torch.flip(prob, dims=[1])
-    mask_flipped = torch.flip(mask, dims=[1])
 
     state = torch.cat([state, state_flipped], dim=0)
     next_state = torch.cat([next_state, next_state_flipped], dim=0)
     prob = torch.cat([prob, prob_flipped], dim=0)
-    mask = torch.cat([mask, mask_flipped], dim=0)
     value = torch.cat([value, value], dim=0)
     done = torch.cat([done, done], dim=0)
+    n = torch.cat([n, n], dim=0)
 
-    return state, prob, value, next_state, done, mask
+    return state, prob, value, next_state, done, n
 
 
 @njit

@@ -52,7 +52,7 @@ class Game:
 
     def start_self_play(self, player, temp=1, first_n_steps=5):
         self.env.reset()
-        states, mcts_probs, current_players, next_states, masks = [], [], [], [], []
+        states, mcts_probs, current_players, next_states = [], [], [], []
         # values = []
         steps = 0
         while True:
@@ -61,7 +61,6 @@ class Game:
             # values.append(float(v_target))
             steps += 1
             states.append(self.env.current_state())
-            masks.append(self.env.valid_mask())
             mcts_probs.append(probs)
             current_players.append(self.env.turn)
             self.env.step(action)
@@ -74,4 +73,4 @@ class Game:
                     winner_z[np.array(current_players) != winner] = -1
                 dones = [False]*len(current_players)
                 dones[-1] = True
-                return winner, zip(states, mcts_probs, winner_z, next_states, dones, masks)
+                return winner, zip(states, mcts_probs, winner_z, next_states, dones)

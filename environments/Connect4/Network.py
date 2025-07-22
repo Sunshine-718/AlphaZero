@@ -15,53 +15,53 @@ from .config import network_config as config
 class Block(nn.Module):
     def __init__(self, in_dim, out_dim, kernel_size, padding=0):
         super().__init__()
-        self.conv = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, padding=padding),
+        self.conv = nn.Sequential(nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, padding=padding, bias=False),
                                   nn.BatchNorm2d(out_dim),
-                                  nn.SiLU(True))
+                                  nn.SiLU(True),
+                                  nn.Dropout2d(0.1))
     
     def forward(self, x):
         return self.conv(x)
 
 
 class CNN(Base):
-    def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, num_quantiles=51, device='cpu'):
+    def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, num_quantiles=32, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(Block(in_dim, h_dim, (3, 3), (2, 2)),
                                     Block(h_dim, h_dim * 2, (4, 5)),
                                     Block(h_dim * 2, h_dim * 2, (3, 3)),
-                                    Block(h_dim * 2, h_dim * 4, (3, 3)),
-                                    nn.Flatten())
-        self.policy_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
-                                         nn.LayerNorm(h_dim * 4),
+                                    Block(h_dim * 2, h_dim * 4, (3, 3)))
+        self.policy_head = nn.Sequential(nn.Conv2d(h_dim * 4, h_dim, kernel_size=1, bias=False),
+                                         nn.BatchNorm2d(h_dim),
                                          nn.SiLU(True),
-                                         nn.Linear(h_dim * 4, out_dim))
-        self.value_head = nn.Sequential(nn.Linear(h_dim * 4, h_dim * 4),
-                                        nn.LayerNorm(h_dim * 4),
-                                        nn.SiLU(True),
-                                        nn.Linear(h_dim * 4, num_quantiles),
-                                        nn.Tanh())
+                                         nn.Flatten(),
+                                         nn.Linear(h_dim, out_dim),
+                                         nn.LogSoftmax(dim=-1))
+        self.value_head = nn.Sequential(nn.Conv2d(h_dim * 4, h_dim, kernel_size=1, bias=False),
+                                         nn.BatchNorm2d(h_dim),
+                                         nn.SiLU(True),
+                                         nn.Flatten(),
+                                         nn.Linear(h_dim, num_quantiles),
+                                         nn.Tanh())
         self.num_quantiles = num_quantiles
         self.device = device
         self.n_actions = out_dim
-        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
+        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=1e-4, decoupled_weight_decay=True)
         self.to(self.device)
 
     def name(self):
         return 'CNN'
 
-    def forward(self, x, mask=None):
+    def forward(self, x):
         hidden = self.hidden(x)
-        prob_logit = self.policy_head(hidden)
-        if mask is not None:
-            prob_logit.masked_fill_(~mask, -float('inf'))
-        log_prob = F.log_softmax(prob_logit, dim=-1)
+        log_prob = self.policy_head(hidden)
         value = self.value_head(hidden)
         return log_prob, value
     
-    def predict(self, state, mask=None):
+    def predict(self, state):
         self.eval()
         with torch.no_grad():
-            log_prob, value = self.forward(state, mask)
+            log_prob, value = self.forward(state)
             value = value.mean(dim=-1, keepdim=True)
         return log_prob.exp().cpu().numpy(), value.cpu().numpy()
 

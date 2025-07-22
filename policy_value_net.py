@@ -33,8 +33,7 @@ class PolicyValueNet:
         self.opt = self.net.opt
         self.device = self.net.device
         self.n_actions = net.n_actions
-        self.tau = torch.linspace(0.5 / net.num_quantiles, 1 - 0.5 / net.num_quantiles,
-                                  net.num_quantiles).to(net.device).view(1, -1)
+        self.tau = torch.linspace(0, 1, net.num_quantiles).to(net.device).view(1, -1)
         if params:
             self.net.load(params)
         self.eval()
@@ -50,20 +49,21 @@ class PolicyValueNet:
         action_probs = tuple(zip(valid, probs.flatten()[valid]))
         return action_probs, value.flatten()[0]
 
-    def train_step(self, dataloader, augment):
+    def train_step(self, dataloader, augment, current_step):
         p_l, v_l = [], []
         self.train()
-        for batch in dataloader:
-            state, prob, value, _, _, _ = augment(batch)
-            self.opt.zero_grad()
-            log_p_pred, value_pred = self.net(state)
-            v_loss = quantile_loss(value_pred, value, self.tau)
-            p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
-            loss = p_loss + v_loss
-            loss.backward()
-            self.opt.step()
-            p_l.append(p_loss.item())
-            v_l.append(v_loss.item())
+        for _ in range(3):
+            for batch in dataloader:
+                state, prob, value, *_ = augment(batch)
+                self.opt.zero_grad()
+                log_p_pred, value_pred = self.net(state)
+                v_loss = quantile_loss(value_pred, value, self.tau)
+                p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
+                loss = p_loss + v_loss
+                loss.backward()
+                self.opt.step()
+                p_l.append(p_loss.item())
+                v_l.append(v_loss.item())
         self.eval()
         with torch.no_grad():
             _, new_v = self.net.predict(state)

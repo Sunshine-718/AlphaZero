@@ -19,7 +19,7 @@ class ReplayBuffer:
             self.state, torch.nan, dtype=torch.float32, device=device)
         self.done = torch.full_like(
             self.value, torch.nan, dtype=torch.bool, device=device)
-        self.mask = torch.full((capacity, action_dim), torch.nan, dtype=torch.bool, device=device)
+        self.n = torch.full_like(self.value, 0, dtype=torch.int64, device=device)
         self.replay_ratio = replay_ratio
         self.count = 0
         self.device = device
@@ -40,7 +40,7 @@ class ReplayBuffer:
         self.next_state = torch.full_like(
             self.next_state, torch.nan, dtype=torch.float32)
         self.done = torch.full_like(self.done, torch.nan, dtype=torch.bool)
-        self.mask = torch.full_like(self.mask, torch.nan, dtype=torch.bool)
+        self.n = torch.full_like(self.n, 0, dtype=torch.int64)
         self.count = 0
 
     def to(self, device='cpu'):
@@ -49,10 +49,10 @@ class ReplayBuffer:
         self.value = self.value.to(device)
         self.next_state = self.next_state.to(device)
         self.done = self.done.to(device)
-        self.mask = self.mask.to(device)
+        self.n = self.n.to(device)
         self.device = device
 
-    def store(self, state, prob, value, next_state, done, mask):
+    def store(self, state, prob, value, next_state, done, n):
         idx = self.count % len(self.state)
         self.count += 1
         if isinstance(state, np.ndarray):
@@ -69,14 +69,12 @@ class ReplayBuffer:
                 torch.FloatTensor).to(self.device)
         self.next_state[idx] = next_state
         self.done[idx] = done
-        if isinstance(mask, list):
-            mask = torch.tensor(mask, dtype=torch.bool, device=self.device)
-        self.mask[idx] = mask
+        self.n[idx] = n
         return idx
     
     def get(self, indices):
         return self.state[indices], self.prob[indices], self.value[indices], \
-            self.next_state[indices], self.done[indices], self.mask[indices]
+            self.next_state[indices], self.done[indices], self.n[indices]
     
     def sample(self, batch_size):
         idx = torch.from_numpy(np.random.randint(
