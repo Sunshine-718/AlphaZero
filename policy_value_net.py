@@ -5,25 +5,8 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-from sklearn.metrics import r2_score
-
-
-def quantile_huber_loss(pred, target, tau, kappa=1.0):
-    # pred: [B, N], target: [B, 1], tau: [1, N]
-    error = pred.unsqueeze(2) - target.expand_as(pred).unsqueeze(1)  # [B, N, N]
-    huber = torch.where(error.abs() <= kappa, 0.5 * error.pow(2), kappa * (error.abs() - 0.5 * kappa))
-    loss = torch.abs(tau.unsqueeze(-1) - (error.detach() < 0).float()) * huber  # [B, N, N]
-    return loss.mean()
-
-
-def quantile_loss(predictions, targets, taus):
-    # predictions: [batch_size, num_quantiles]
-    # targets: [batch_size, 1]
-    # taus: [batch_size, num_quantiles]
-    targets = targets.expand_as(predictions)
-    errors = targets - predictions
-    loss = torch.where(errors > 0, taus * errors, (1 - taus) * (-errors))
-    return loss.mean()
+from sklearn.metrics import f1_score
+from copy import deepcopy
 
 
 class PolicyValueNet:
@@ -33,7 +16,6 @@ class PolicyValueNet:
         self.opt = self.net.opt
         self.device = self.net.device
         self.n_actions = net.n_actions
-        self.tau = torch.linspace(0, 1, net.num_quantiles).to(net.device).view(1, -1)
         if params:
             self.net.load(params)
         self.eval()
@@ -55,9 +37,12 @@ class PolicyValueNet:
         for _ in range(3):
             for batch in dataloader:
                 state, prob, value, *_ = augment(batch)
+                value = deepcopy(value)
+                value[value == -1] = 2
+                value = value.view(-1, )
                 self.opt.zero_grad()
                 log_p_pred, value_pred = self.net(state)
-                v_loss = quantile_loss(value_pred, value, self.tau)
+                v_loss = F.nll_loss(value_pred, value.type(torch.int64))
                 p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
                 loss = p_loss + v_loss
                 loss.backward()
@@ -66,8 +51,8 @@ class PolicyValueNet:
                 v_l.append(v_loss.item())
         self.eval()
         with torch.no_grad():
-            _, new_v = self.net.predict(state)
-        r2 = r2_score(value.cpu().numpy(), new_v)
+            _, new_v = self.net(state)
+        r2 = f1_score(value.cpu().numpy(), torch.argmax(new_v, dim=-1).cpu().numpy(), average='macro')
         with torch.no_grad():
             entropy = -torch.mean(torch.sum(log_p_pred.exp() * log_p_pred, dim=-1))
             total_norm = 0

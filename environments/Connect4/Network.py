@@ -27,7 +27,7 @@ class Block(nn.Module):
 
 
 class CNN(Base):
-    def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, num_quantiles=32, device='cpu'):
+    def __init__(self, lr, in_dim=3, h_dim=config['h_dim'], out_dim=7, device='cpu'):
         super().__init__()
         self.hidden = nn.Sequential(nn.Conv2d(in_dim, h_dim, kernel_size=3, padding=1, bias=False),
                                     nn.BatchNorm2d(h_dim),
@@ -46,9 +46,8 @@ class CNN(Base):
                                          nn.BatchNorm2d(1),
                                          nn.SiLU(True),
                                          nn.Flatten(),
-                                         nn.Linear(6 * 7, num_quantiles),
-                                         nn.Tanh())
-        self.num_quantiles = num_quantiles
+                                         nn.Linear(6 * 7, 3),
+                                         nn.LogSoftmax(dim=-1))
         self.device = device
         self.n_actions = out_dim
         self.opt = NAdam(self.parameters(), lr=lr, weight_decay=1e-4, decoupled_weight_decay=True)
@@ -66,9 +65,11 @@ class CNN(Base):
     def predict(self, state):
         self.eval()
         with torch.no_grad():
-            log_prob, value = self.forward(state)
-            value = value.mean(dim=-1, keepdim=True)
-        return log_prob.exp().cpu().numpy(), value.cpu().numpy()
+            log_prob, value_log_prob = self.forward(state)
+            value_prob = value_log_prob.exp()
+            player = state[:, -1, 0, 0].view(-1,)
+            value = (-player) * 0.5 * value_prob[:, 0] + value_prob[:, 1] - value_prob[:, 2]
+        return log_prob.exp().cpu().numpy(), value.cpu().view(-1, 1).numpy()
 
 
 class PatchEmbedding(nn.Module):

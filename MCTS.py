@@ -44,7 +44,7 @@ class TreeNode:
         return self.parent is None
 
     def PUCT(self, c_init, c_base):
-        eps = 0.1
+        eps = 0.25
         prior = (1 - eps) * self.prior + eps * self.noise
         if self.n_visits == 0:
             self.u = float('inf')
@@ -91,7 +91,7 @@ class MCTS:
         self.root = TreeNode(None, 1, None)
         self.policy = policy_value_fn
         self.c_init = c_init
-        self.c_base = n_playout / 800 * 19652
+        self.c_base = 500
         self.n_playout = n_playout
         self.alpha = alpha
         self.deterministic = False
