@@ -65,7 +65,6 @@ class TrainPipeline:
                 for data in play_data:
                     self.buffer.store(*data)
         self.episode_len = int(np.mean(episode_len))
-        assert self.episode_len <= 42
 
     def policy_update(self):
         dataloader = self.buffer.dataloader(self.batch_size)
