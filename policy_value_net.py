@@ -34,21 +34,20 @@ class PolicyValueNet:
     def train_step(self, dataloader, augment, current_step):
         p_l, v_l = [], []
         self.train()
-        for _ in range(3):
-            for batch in dataloader:
-                state, prob, value, *_ = augment(batch)
-                value = deepcopy(value)
-                value[value == -1] = 2
-                value = value.view(-1, )
-                self.opt.zero_grad()
-                log_p_pred, value_pred = self.net(state)
-                v_loss = F.nll_loss(value_pred, value.type(torch.int64))
-                p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
-                loss = p_loss + v_loss
-                loss.backward()
-                self.opt.step()
-                p_l.append(p_loss.item())
-                v_l.append(v_loss.item())
+        for batch in dataloader:
+            state, prob, value, *_ = augment(batch)
+            value = deepcopy(value)
+            value[value == -1] = 2
+            value = value.view(-1, )
+            self.opt.zero_grad()
+            log_p_pred, value_pred = self.net(state)
+            v_loss = F.nll_loss(value_pred, value.type(torch.int64))
+            p_loss = F.kl_div(log_p_pred, prob, reduction='batchmean')
+            loss = p_loss + v_loss
+            loss.backward()
+            self.opt.step()
+            p_l.append(p_loss.item())
+            v_l.append(v_loss.item())
         self.eval()
         with torch.no_grad():
             _, new_v = self.net(state)

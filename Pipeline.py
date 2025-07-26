@@ -18,7 +18,7 @@ from tqdm.auto import trange
 
 class TrainPipeline:
     def __init__(self, env_name='Connect4', model='CNN', name='AZ'):
-        collection = ('Connect4', 'TTT')  # NBTTT implementation not yet finished.
+        collection = ('Connect4', )  # NBTTT implementation not yet finished.
         if env_name not in collection:
             raise ValueError(
                 f'Environment does not exist, available env: {collection}')
@@ -29,6 +29,7 @@ class TrainPipeline:
         self.name = f'{name}_{env_name}'
         self.params = './params'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.global_step = 0
         for key, value in self.module.training_config.items():
             setattr(self, key, value)
         self.buffer = ReplayBuffer(self.module.network_config['in_dim'],
@@ -63,16 +64,16 @@ class TrainPipeline:
                 play_data = list(play_data)[:]
                 episode_len.append(len(play_data)) 
                 for data in play_data:
-                    self.buffer.store(*data)
+                    self.buffer.store(*data, self.global_step)
         self.episode_len = int(np.mean(episode_len))
 
     def policy_update(self):
         dataloader = self.buffer.dataloader(self.batch_size)
         
-        p_l, v_l, ent, g_n, r2 = self.policy_value_net.train_step(dataloader, self.module.instant_augment)
+        p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(dataloader, self.module.instant_augment, self.global_step)
             
-        print(f'R2 score (new): {r2: .3f}')
-        return p_l, v_l, ent, g_n, r2
+        print(f'F1 score (new): {f1: .3f}')
+        return p_l, v_l, ent, g_n, f1
 
     def run(self):
         self.show_hyperparams()
@@ -81,54 +82,53 @@ class TrainPipeline:
         writer = SummaryWriter(filename_suffix=self.name)
         writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': self.init_elo,
                                           f'MCTS_{self.pure_mcts_n_playout}': 1500}, 0)
-        i = 0
         best_counter = 0
         while True:
             self.data_collector(self.play_batch_size)
             p_loss, v_loss, entropy, grad_norm = float('inf'), float('inf'), \
                 float('inf'), float('inf')
-            i += 1
-            p_loss, v_loss, entropy, grad_norm, r2 = self.policy_update()
+            self.global_step += 1
+            p_loss, v_loss, entropy, grad_norm, f1 = self.policy_update()
             
-            print(f'batch i: {i}, episode_len: {self.episode_len}, '
+            print(f'batch i: {self.global_step}, episode_len: {self.episode_len}, '
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
 
-            writer.add_scalar('Metric/Gradient Norm', grad_norm, i)
-            writer.add_scalar('Metric/R2 score', r2, i)
+            writer.add_scalar('Metric/Gradient Norm', grad_norm, self.global_step)
+            writer.add_scalar('Metric/F1 score', f1, self.global_step)
             writer.add_scalars(
-                'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, i)
-            writer.add_scalar('Metric/Entropy', entropy, i)
-            writer.add_scalar('Metric/Episode length', self.episode_len, i)
+                'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, self.global_step)
+            writer.add_scalar('Metric/Entropy', entropy, self.global_step)
+            writer.add_scalar('Metric/Episode length', self.episode_len, self.global_step)
 
-            if (i) % 10 != 0:
+            if (self.global_step) % 10 != 0:
                 continue
 
-            print(f'current self-play batch: {i + 1}')
+            print(f'current self-play batch: {self.global_step + 1}')
             r_a, r_b = self.update_elo()
             print(f'Elo score: AlphaZero: {r_a: .2f}, Benchmark: {r_b: .2f}')
             writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': r_a,
-                                              f'MCTS_{self.pure_mcts_n_playout}': r_b}, i)
+                                              f'MCTS_{self.pure_mcts_n_playout}': r_b}, self.global_step)
 
-            if self.env_name in ('Connect4', 'TTT'):
+            if self.env_name == 'Connect4':
                 p0, v0, p1, v1 = self.module.inspect(self.policy_value_net.net)
                 writer.add_scalars('Metric/Initial Value',
-                                   {'X': v0, 'O': v1}, i)
+                                   {'X': v0, 'O': v1}, self.global_step)
                 writer.add_scalars('Action probability/X',
-                                   {str(idx): i for idx, i in enumerate(p0)}, i)
+                                   {str(idx): i for idx, i in enumerate(p0)}, self.global_step)
                 writer.add_scalars('Action probability/O',
-                                   {str(idx): i for idx, i in enumerate(p1)}, i)
+                                   {str(idx): i for idx, i in enumerate(p1)}, self.global_step)
                 writer.add_scalars('Action probability/X_cummulative',
-                                   {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, i)
+                                   {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, self.global_step)
                 writer.add_scalars('Action probability/O_cummulative',
-                                   {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, i)
+                                   {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, self.global_step)
             self.policy_value_net.save(current)
 
             flag, win_rate = self.select_best_player(self.num_eval)
-            writer.add_scalar('Metric/win rate', win_rate, i)
+            writer.add_scalar('Metric/win rate', win_rate, self.global_step)
             if flag:
                 print('New best policy!!')
                 best_counter += 1
-                writer.add_scalar('Metric/Best policy', best_counter, i)
+                writer.add_scalar('Metric/Best policy', best_counter, self.global_step)
                 self.policy_value_net.save(best)
 
     def update_elo(self):
