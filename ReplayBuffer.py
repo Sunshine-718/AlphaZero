@@ -6,9 +6,8 @@ import torch
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 
-
 class ReplayBuffer:
-    def __init__(self, state_dim, capacity, action_dim, row, col, replay_ratio=0.1, device='cpu'):
+    def __init__(self, state_dim, capacity, action_dim, row, col, replay_ratio=0.1, device='cpu', balance_done_value=True):
         self.state = torch.full(
             (capacity, state_dim, row, col), torch.nan, dtype=torch.float32, device=device)
         self.prob = torch.full(
@@ -23,6 +22,7 @@ class ReplayBuffer:
         self.replay_ratio = replay_ratio
         self.count = 0
         self.device = device
+        self.balance_done_value = balance_done_value
 
     def __len__(self):
         return min(self.count, len(self.state))
@@ -71,27 +71,79 @@ class ReplayBuffer:
         self.done[idx] = done
         self.n[idx] = n
         return idx
-    
+
     def get(self, indices):
         return self.state[indices], self.prob[indices], self.value[indices], \
             self.next_state[indices], self.done[indices], self.n[indices]
-    
+
     def sample(self, batch_size):
         idx = torch.from_numpy(np.random.randint(
             0, self.__len__(), batch_size, dtype=np.int64))
         return self.get(idx)
 
     def dataloader(self, batch_size):
-        total = self.__len__()
-        if self.__len__() > 1000:
-            total = int(self.__len__() * self.replay_ratio)
-        idx = torch.from_numpy(np.random.randint(
-            0, self.__len__(), total, dtype=np.int64))
+        total_samples = self.__len__()
+        max_samples = min(int(total_samples * self.replay_ratio), 10000, total_samples)
+        if total_samples <= 1000:
+            max_samples = total_samples
+        if max_samples <= 0:
+            raise ValueError("No available data to sample.")
+
+        done_flags = self.done[:total_samples].squeeze()
+        value_labels = self.value[:total_samples].squeeze()
+        done_indices = (done_flags == 1).nonzero(as_tuple=True)[0]
+        not_done_indices = (done_flags == 0).nonzero(as_tuple=True)[0]
+
+        n_done = max(1, int(max_samples * 0.2))
+        n_not_done = max_samples - n_done
+
+        def balanced_or_random_sample(indices, values, n, do_balance):
+            # 支持平衡采样，否则直接随机采样
+            if do_balance and len(indices) > 0 and torch.allclose(values[indices], values[indices].round()):
+                labels = values[indices].long()
+                unique_vals = torch.unique(labels)
+                n_types = unique_vals.numel()
+                n_per_type = n // n_types
+                remainder = n % n_types
+                result = []
+                for i, val in enumerate(unique_vals):
+                    idxs = indices[(labels == val).nonzero(as_tuple=True)[0]]
+                    size = n_per_type + (1 if i < remainder else 0)
+                    size = min(size, len(idxs))
+                    if size > 0:
+                        select = idxs[torch.randperm(len(idxs))[:size]]
+                        result.append(select)
+                if result:
+                    return torch.cat(result)
+                else:
+                    return torch.tensor([], dtype=torch.long)
+            else:
+                if len(indices) == 0:
+                    return torch.tensor([], dtype=torch.long)
+                size = min(len(indices), n)
+                return indices[torch.randperm(len(indices))[:size]]
+
+        done_sample_idx = balanced_or_random_sample(done_indices, value_labels, n_done, self.balance_done_value)
+
+        if len(not_done_indices) == 0:
+            not_done_sample_idx = torch.tensor([], dtype=torch.long)
+        else:
+            size = min(len(not_done_indices), n_not_done)
+            not_done_sample_idx = not_done_indices[torch.randperm(len(not_done_indices))[:size]]
+
+        idx = torch.cat([done_sample_idx, not_done_sample_idx])
+        if len(idx) == 0:
+            raise ValueError("No available data to sample.")
+        idx = idx[torch.randperm(len(idx))]  # 总体再打乱
+
         dataset = TensorDataset(*self.get(idx))
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)
-    
+
     def sample_balanced(self, batch_size):
         values = self.value[:self.__len__()].squeeze()  # [N]
+        if not torch.allclose(values, values.round()):
+            raise ValueError("ReplayBuffer的value数据非整数，平衡采样前需保证离散标签！")
+        values = values.long()
         unique_vals = torch.unique(values)
         n_types = unique_vals.numel()
         assert(n_types <= 3)

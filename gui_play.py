@@ -39,6 +39,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QSpinBox
 from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt, QTimer
 import torch
+import torch.nn.functional as F
 from environments import load
 from policy_value_net import PolicyValueNet
 from player import Human, AlphaZeroPlayer
@@ -57,8 +58,6 @@ class Connect4GUI(QWidget):
         self.player_color = PLAYER_COLOR_DEFAULT
         self.last_probs = None
         self.last_move = None
-        self.recommend_col = None
-        self.show_probs = True
         self.ai_thinking_time = -1
         self.timer = QTimer()
         self.timer.timeout.connect(self.animate_drop)
@@ -124,11 +123,6 @@ class Connect4GUI(QWidget):
         self.layout.addWidget(self.speed_label)
         self.layout.addWidget(self.speed_input)
 
-        # 是否显示推荐落子
-        self.show_probs_checkbox = QCheckBox("显示推荐落子")
-        self.show_probs_checkbox.setChecked(self.show_probs)
-        self.show_probs_checkbox.stateChanged.connect(self.toggle_show_probs)
-        self.layout.addWidget(self.show_probs_checkbox)
 
         # 重新开始按钮
         self.reset_button = QPushButton("重新开始")
@@ -138,6 +132,8 @@ class Connect4GUI(QWidget):
         # AI 思考时间
         self.thinking_time_label = QLabel("AI 思考时间: -")
         self.layout.addWidget(self.thinking_time_label)
+
+        # 勝平負概率显示标签（已移到底部，见下方新增代码）
 
         # 布局与窗口设置
         self.control_panel.setGeometry(
@@ -151,6 +147,23 @@ class Connect4GUI(QWidget):
             self.cell_size * 6 + self.margin * 2 + 60
         )
         self.setWindowTitle(WINDOW_TITLE)
+
+        # 新增：底部横向显示胜率标签
+        from PyQt5.QtWidgets import QHBoxLayout
+
+        self.bottom_widget = QWidget(self)
+        self.bottom_layout = QHBoxLayout(self.bottom_widget)
+        self.bottom_layout.setContentsMargins(0, 0, 0, 0)
+        self.bottom_widget.setGeometry(
+            0,
+            self.height() - 40,
+            self.width(),
+            40
+        )
+        self.winrate_label = QLabel("Win: -%, Draw: -%, Lose: -%")
+        self.winrate_label.setAlignment(Qt.AlignCenter)
+        self.bottom_layout.addWidget(self.winrate_label)
+        self.bottom_widget.show()
 
         # 状态变量
         self.animating = False
@@ -177,6 +190,9 @@ class Connect4GUI(QWidget):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         net_class = getattr(self.env_module, self.network)
         net = net_class(lr=0, device=device)  # lr=0 → 推理模式
+        net.eval()
+        # 注册原始网络以供获取价值头
+        self.net = net
 
         model_path = PARAMS_PATH_FMT.format(
             model_name=self.model_name,
@@ -202,29 +218,12 @@ class Connect4GUI(QWidget):
         self.ai_thinking_time = -1
         self.thinking_time_label.setText("AI 思考时间: -")
         self.result_label.setText("")
-        self.update_recommendation()
         self.update()
+        # 重置时更新初始胜平负概率
+        self.update_winrate()
         if self.env.turn == -1 * self.player_color:
             self.ai_move()
 
-    def toggle_show_probs(self, state):
-        self.show_probs = bool(state)
-        self.update()
-
-    def update_recommendation(self):
-        if not self.show_probs:
-            self.recommend_col = None
-            return
-        if self.env.turn == self.player_color and not self.env.done() and self.policy_net is not None:
-            try:
-                self.az_player.reset_player()
-                actions, vistis = self.az_player.mcts.get_action_visits(self.env, discount=self.env_module.training_config['discount'])
-                self.az_player.reset_player()
-                self.recommend_col = max(actions, key=lambda x: vistis[x])
-            except:
-                self.recommend_col = None
-        else:
-            self.recommend_col = None
 
     def paintEvent(self, event):
         qp = QPainter()
@@ -272,11 +271,6 @@ class Connect4GUI(QWidget):
             qp.setPen(QColor(255, 0, 0))
             qp.setBrush(Qt.NoBrush)
             qp.drawRect(x + 5, y + 5, self.cell_size - 10, self.cell_size - 10)
-        if self.show_probs and self.recommend_col is not None:
-            x = self.margin + self.recommend_col * self.cell_size + self.cell_size // 2
-            y = self.margin + self.cell_size * 6 + 25
-            qp.setBrush(QColor(0, 200, 0))
-            qp.drawEllipse(x - 6, y - 6, 12, 12)
         if self.animating and self.animation_row >= 0:
             center_x = self.margin + self.animation_col * self.cell_size + self.cell_size // 2
             center_y = self.margin + self.animation_row * self.cell_size + self.cell_size // 2
@@ -320,7 +314,9 @@ class Connect4GUI(QWidget):
         action, probs = self.az_player.get_action(self.env)
         self.ai_thinking_time = time.time() - start
         self.thinking_time_label.setText(f"AI 思考时间: {self.ai_thinking_time:.2f} 秒")
-        self.last_probs = probs if self.show_probs else None
+        self.last_probs = probs
+        # 每步落子后更新胜平负概率
+        self.update_winrate()
         row = self.find_drop_row(action)
         if row != -1:
             self.last_move = (row, action)
@@ -328,10 +324,32 @@ class Connect4GUI(QWidget):
 
     def after_move(self, col):
         self.env.step(col)
-        self.update_recommendation()
         self.update()
+        self.update_winrate()
         if self.env.done():
             self.show_result()
+            return
+        if self.env.turn == -1 * self.player_color:
+            self.ai_move()
+        if self.env.turn == -1 * self.player_color:
+            from PyQt5.QtCore import QTimer
+            QTimer.singleShot(50, self.ai_move)
+
+    def update_winrate(self):
+        """计算并更新当前局面胜平负概率显示"""
+        with torch.no_grad():
+            state = self.env.current_state()
+            state_tensor = torch.from_numpy(state).float().to(self.net.device).unsqueeze(0)
+            if state_tensor.dim() == 5:
+                state_tensor = state_tensor.squeeze(1)
+            _, value_logit = self.net(state_tensor)
+            value_probs = F.softmax(value_logit, dim=-1)[0].cpu().numpy()
+        draw_prob = value_probs[0] * 100
+        win_prob = value_probs[1] * 100
+        lose_prob = value_probs[2] * 100
+        self.winrate_label.setText(
+            f"Win: {win_prob:.1f}%, Draw: {draw_prob:.1f}%, Lose: {lose_prob:.1f}%"
+        )
 
     def find_drop_row(self, col):
         state = self.env.current_state()
@@ -359,7 +377,8 @@ class Connect4GUI(QWidget):
             self.animating = False
             self.animation_callback()
             if self.env.turn == -1 * self.player_color and not self.env.done():
-                self.ai_move()
+                from PyQt5.QtCore import QTimer
+                QTimer.singleShot(50, self.ai_move)
 
     # 只在顶部显示胜负，不再弹窗
     def show_result(self):
@@ -367,7 +386,7 @@ class Connect4GUI(QWidget):
         if winner == self.player_color:
             self.result_label.setText("你赢了！点击重新开始。")
         elif winner == -self.player_color:
-            self.result_label.setText("AlphaZero 赢了！点击重新开始。")
+            self.result_label.setText("你输了！点击重新开始。")
         else:
             self.result_label.setText("平局！点击重新开始。")
 
@@ -378,6 +397,9 @@ if __name__ == "__main__":
 
     from PyQt5.QtWidgets import QApplication
     app = QApplication([])
+    from PyQt5.QtGui import QFont
+    app.setFont(QFont('Microsoft YaHei', 12))
+    app.setStyleSheet("QLabel { color: #222; }")
     gui = Connect4GUI()
     gui.show()
     app.exec_()
