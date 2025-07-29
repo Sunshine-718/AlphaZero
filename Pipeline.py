@@ -13,22 +13,25 @@ from policy_value_net import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 from torch.utils.tensorboard import SummaryWriter
-from tqdm.auto import trange
+from tqdm.auto import tqdm
 import multiprocessing as mp
 
 
-def selfplay_worker(env_name, model_path, player_args, game_args, temp, first_n_steps):
-    # 进程内各自新建环境、模型、player
+def selfplay_worker(env_name, model_path, player_args, temp, first_n_steps):
     module = load(env_name)
     env = module.Env()
     game = Game(env)
-    net = module.CNN(lr=0.0)  # 推理阶段，无需学习率
+    net = module.CNN(lr=0.0)
     net.load_state_dict(torch.load(model_path, map_location='cpu'))
     policy_value_net = PolicyValueNet(net, model_path)
     az_player = AlphaZeroPlayer(policy_value_net, **player_args)
-    # 启动自我对弈
-    _, play_data = game.start_self_play(az_player, temp=temp, first_n_steps=first_n_steps)
+    _, play_data = game.start_self_play(
+        az_player, temp=temp, first_n_steps=first_n_steps)
     return list(play_data)
+
+
+def _preheat_task():
+    return None
 
 
 class TrainPipeline:
@@ -69,43 +72,72 @@ class TrainPipeline:
         self.elo = Elo(self.init_elo, 1500)
         if not os.path.exists('params'):
             os.makedirs('params')
+        self.num_workers = self.play_batch_size
+        # 若 psutil 可用，可改为物理核数
+        self.pool = mp.Pool(processes=self.num_workers)
+        # 预热进程池，避免第一次任务特别慢
+        self.pool.apply_async(_preheat_task).get(timeout=10)
 
     def data_collector(self, n_games=1):
         self.policy_value_net.eval()
         self.az_player.train()
         self.az_player.to('cpu')
-        episode_len = []
-        model_path = self.current  # 采样worker读取主进程最新权重
-        # 采样player和game相关参数，保证worker独立
+        episode_lens = []
+        model_path = self.current
         player_args = dict(
             c_puct=self.c_puct,
             n_playout=self.n_playout,
             alpha=self.dirichlet_alpha,
             is_selfplay=1
         )
-        game_args = {}  # 若Game有特殊参数可补充
 
-        with mp.Pool(processes=min(mp.cpu_count(), n_games)) as pool:
-            results = [
-                pool.apply_async(
-                    selfplay_worker,
-                    (self.env_name, model_path, player_args, game_args, self.temp, self.first_n_steps)
-                )
-                for _ in range(n_games)
-            ]
-            for r in trange(n_games):
-                play_data = results[r].get()
-                episode_len.append(len(play_data))
-                for data in play_data:
-                    self.buffer.store(*data, self.global_step)
-        self.episode_len = int(np.mean(episode_len))
+        pbar = tqdm(total=n_games, desc="Self-play")
+        results = []
+        play_data_list = []
+
+        # callback函数，每次子任务完成自动调用
+        def _cb(play_data):
+            episode_lens.append(len(play_data))
+            play_data_list.append(play_data)
+            pbar.update()
+
+        # 提交所有子任务
+        for _ in range(n_games):
+            async_res = self.pool.apply_async(
+                selfplay_worker,
+                args=(self.env_name, model_path, player_args, self.temp, self.first_n_steps),
+                callback=_cb
+            )
+            results.append(async_res)
+
+        # 等待所有任务完成，防止提前退出
+        for res in results:
+            res.wait()  # 仅阻塞直到任务完成即可，回调已收集数据
+
+        pbar.close()
+
+        # 存储数据到buffer
+        for play_data in play_data_list:
+            for data in play_data:
+                self.buffer.store(*data, self.global_step)
+        if episode_lens:
+            self.episode_len = int(sum(episode_lens) / len(episode_lens))
+        else:
+            self.episode_len = 0
+    def __del__(self):
+        try:
+            self.pool.close()
+            self.pool.join()
+        except Exception:
+            pass
 
     def policy_update(self):
         self.policy_value_net.to(self.device)
         dataloader = self.buffer.dataloader(self.batch_size)
-        
-        p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(dataloader, self.module.instant_augment, self.global_step)
-            
+
+        p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(
+            dataloader, self.module.instant_augment, self.global_step)
+
         print(f'F1 score (new): {f1: .3f}')
         self.policy_value_net.to('cpu')
         return p_l, v_l, ent, g_n, f1
@@ -123,16 +155,18 @@ class TrainPipeline:
             self.global_step += 1
             p_loss, v_loss, entropy, grad_norm, f1 = self.policy_update()
             self.policy_value_net.save(self.current)
-            
+
             print(f'batch i: {self.global_step}, episode_len: {self.episode_len}, '
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
 
-            writer.add_scalar('Metric/Gradient Norm', grad_norm, self.global_step)
+            writer.add_scalar('Metric/Gradient Norm',
+                              grad_norm, self.global_step)
             writer.add_scalar('Metric/F1 score', f1, self.global_step)
             writer.add_scalars(
                 'Metric/Loss', {'Action Loss': p_loss, 'Value loss': v_loss}, self.global_step)
             writer.add_scalar('Metric/Entropy', entropy, self.global_step)
-            writer.add_scalar('Metric/Episode length', self.episode_len, self.global_step)
+            writer.add_scalar('Metric/Episode length',
+                              self.episode_len, self.global_step)
 
             if (self.global_step) % 10 != 0:
                 continue
@@ -161,7 +195,8 @@ class TrainPipeline:
             if flag:
                 print('New best policy!!')
                 best_counter += 1
-                writer.add_scalar('Metric/Best policy', best_counter, self.global_step)
+                writer.add_scalar('Metric/Best policy',
+                                  best_counter, self.global_step)
                 self.policy_value_net.save(self.best)
 
     def update_elo(self):
@@ -226,7 +261,7 @@ class TrainPipeline:
 
     def update_best_player(self):
         self.best_net = deepcopy(self.policy_value_net)
-        self.best_player = AlphaZeroPlayer(self.best_net, c_puct=self.c_puct, 
+        self.best_player = AlphaZeroPlayer(self.best_net, c_puct=self.c_puct,
                                            n_playout=self.n_playout, alpha=self.dirichlet_alpha)
 
     def __call__(self):
