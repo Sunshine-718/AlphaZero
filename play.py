@@ -14,7 +14,7 @@ parser.add_argument('-x', action='store_true', help='Play as X')
 parser.add_argument('-o', action='store_true', help='Play as O')
 parser.add_argument('-n', type=int, default=500,
                     help='Number of simulations before AlphaZero make an action')
-parser.add_argument('--self_play', action='store_true',
+parser.add_argument('--sp', action='store_true',
                     help='AlphaZero play against itself')
 parser.add_argument('--model', type=str, default='current', help='Model type')
 parser.add_argument('--network', type=str, default='CNN', help='Network type')
@@ -60,7 +60,7 @@ if __name__ == '__main__':
             game.start_play(human, az_player, show=1, show_nn=int(args.show_nn))
         elif args.o:
             game.start_play(az_player, human, show=1, show_nn=int(args.show_nn))
-        elif args.self_play and not (args.x or args.o):
+        elif args.sp and not (args.x or args.o):
             game.start_play(az_player, az_player, show=1, show_nn=int(args.show_nn))
         else:
             raise AttributeError("Invalid argument(s).\nType 'python3 ./play.py -h' for help")
