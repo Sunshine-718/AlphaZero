@@ -39,9 +39,9 @@ class TrainPipeline:
                                    self.module.env_config['col'],
                                    device=self.device)
         if model == 'CNN':
-            self.net = self.module.CNN(lr=self.lr, device=self.device)
+            self.net = self.module.CNN(lr=self.lr)
         elif model == 'ViT':
-            self.net = self.module.ViT(lr=self.lr, device=self.device)
+            self.net = self.module.ViT(lr=self.lr)
         else:
             raise ValueError(f'Unknown model type: {model}')
         params = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
@@ -56,6 +56,7 @@ class TrainPipeline:
     def data_collector(self, n_games=1):
         self.policy_value_net.eval()
         self.az_player.train()
+        self.az_player.to('cpu')
         episode_len = []
         with torch.no_grad():
             for _ in trange(n_games):
@@ -68,11 +69,13 @@ class TrainPipeline:
         self.episode_len = int(np.mean(episode_len))
 
     def policy_update(self):
+        self.policy_value_net.to(self.device)
         dataloader = self.buffer.dataloader(self.batch_size)
         
         p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(dataloader, self.module.instant_augment, self.global_step)
             
         print(f'F1 score (new): {f1: .3f}')
+        self.policy_value_net.to('cpu')
         return p_l, v_l, ent, g_n, f1
 
     def run(self):

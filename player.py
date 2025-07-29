@@ -97,6 +97,9 @@ class AlphaZeroPlayer(MCTSPlayer):
         self.mcts = MCTS_AZ(policy_value_fn, c_puct, n_playout, alpha)
         self.is_selfplay = is_selfplay
         self.n_actions = policy_value_fn.n_actions
+    
+    def to(self, device='cpu'):
+        self.pv_fn.to(device)
 
     def train(self):
         self.mcts.train()

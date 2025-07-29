@@ -19,6 +19,9 @@ class PolicyValueNet:
         if params:
             self.net.load(params)
         self.eval()
+    
+    def to(self, device='cpu'):
+        self.net.to(device)
 
     def policy_value(self, state):
         return self.net.predict(state)
