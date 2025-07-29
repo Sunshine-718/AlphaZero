@@ -95,13 +95,11 @@ class TrainPipeline:
         results = []
         play_data_list = []
 
-        # callback函数，每次子任务完成自动调用
         def _cb(play_data):
             episode_lens.append(len(play_data))
             play_data_list.append(play_data)
             pbar.update()
 
-        # 提交所有子任务
         for _ in range(n_games):
             async_res = self.pool.apply_async(
                 selfplay_worker,
@@ -110,13 +108,11 @@ class TrainPipeline:
             )
             results.append(async_res)
 
-        # 等待所有任务完成，防止提前退出
         for res in results:
-            res.wait()  # 仅阻塞直到任务完成即可，回调已收集数据
+            res.wait()
 
         pbar.close()
 
-        # 存储数据到buffer
         for play_data in play_data_list:
             for data in play_data:
                 self.buffer.store(*data, self.global_step)
@@ -124,6 +120,7 @@ class TrainPipeline:
             self.episode_len = int(sum(episode_lens) / len(episode_lens))
         else:
             self.episode_len = 0
+
     def __del__(self):
         try:
             self.pool.close()
