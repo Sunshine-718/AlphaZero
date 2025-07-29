@@ -122,6 +122,7 @@ class TrainPipeline:
                 float('inf'), float('inf')
             self.global_step += 1
             p_loss, v_loss, entropy, grad_norm, f1 = self.policy_update()
+            self.policy_value_net.save(self.current)
             
             print(f'batch i: {self.global_step}, episode_len: {self.episode_len}, '
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
@@ -154,7 +155,6 @@ class TrainPipeline:
                                    {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, self.global_step)
                 writer.add_scalars('Action probability/O_cummulative',
                                    {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, self.global_step)
-            self.policy_value_net.save(self.current)
 
             flag, win_rate = self.select_best_player(self.num_eval)
             writer.add_scalar('Metric/win rate', win_rate, self.global_step)
