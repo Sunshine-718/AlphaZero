@@ -22,6 +22,7 @@ class PolicyValueNet:
     
     def to(self, device='cpu'):
         self.net.to(device)
+        self.net.device = device
 
     def policy_value(self, state):
         return self.net.predict(state)
