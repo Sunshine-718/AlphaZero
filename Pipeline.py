@@ -29,7 +29,6 @@ class TrainPipeline:
         self.name = f'{name}_{env_name}'
         self.params = './params'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.collector_device = self.device
         self.play_batch_size = num_workers
         self.global_step = 0
         for key, value in self.module.training_config.items():
@@ -56,7 +55,6 @@ class TrainPipeline:
             os.makedirs('params')
 
     def data_collector(self, n_games=1):
-        self.policy_value_net.to(self.collector_device)
         self.policy_value_net.eval()
         self.az_player.train()
         episode_len = []
@@ -71,7 +69,6 @@ class TrainPipeline:
         self.episode_len = int(np.mean(episode_len))
 
     def policy_update(self):
-        self.policy_value_net.to(self.device)
         dataloader = self.buffer.dataloader(self.batch_size)
         
         p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(dataloader, self.module.instant_augment, self.global_step)
