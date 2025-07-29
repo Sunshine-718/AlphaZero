@@ -14,6 +14,21 @@ from ReplayBuffer import ReplayBuffer
 from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import trange
+import multiprocessing as mp
+
+
+def selfplay_worker(env_name, model_path, player_args, game_args, temp, first_n_steps):
+    # 进程内各自新建环境、模型、player
+    module = load(env_name)
+    env = module.Env()
+    game = Game(env)
+    net = module.CNN(lr=0.0)  # 推理阶段，无需学习率
+    net.load_state_dict(torch.load(model_path, map_location='cpu'))
+    policy_value_net = PolicyValueNet(net, model_path)
+    az_player = AlphaZeroPlayer(policy_value_net, **player_args)
+    # 启动自我对弈
+    _, play_data = game.start_self_play(az_player, temp=temp, first_n_steps=first_n_steps)
+    return list(play_data)
 
 
 class TrainPipeline:
@@ -49,6 +64,8 @@ class TrainPipeline:
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, alpha=self.dirichlet_alpha, is_selfplay=1)
         self.update_best_player()
+        self.current = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
+        self.best = f'{self.params}/{self.name}_{self.net.name()}_best.pt'
         self.elo = Elo(self.init_elo, 1500)
         if not os.path.exists('params'):
             os.makedirs('params')
@@ -58,12 +75,27 @@ class TrainPipeline:
         self.az_player.train()
         self.az_player.to('cpu')
         episode_len = []
-        with torch.no_grad():
-            for _ in trange(n_games):
-                _, play_data = self.game.start_self_play(
-                    self.az_player, temp=self.temp, first_n_steps=self.first_n_steps)
-                play_data = list(play_data)[:]
-                episode_len.append(len(play_data)) 
+        model_path = self.current  # 采样worker读取主进程最新权重
+        # 采样player和game相关参数，保证worker独立
+        player_args = dict(
+            c_puct=self.c_puct,
+            n_playout=self.n_playout,
+            alpha=self.dirichlet_alpha,
+            is_selfplay=1
+        )
+        game_args = {}  # 若Game有特殊参数可补充
+
+        with mp.Pool(processes=min(mp.cpu_count(), n_games)) as pool:
+            results = [
+                pool.apply_async(
+                    selfplay_worker,
+                    (self.env_name, model_path, player_args, game_args, self.temp, self.first_n_steps)
+                )
+                for _ in range(n_games)
+            ]
+            for r in trange(n_games):
+                play_data = results[r].get()
+                episode_len.append(len(play_data))
                 for data in play_data:
                     self.buffer.store(*data, self.global_step)
         self.episode_len = int(np.mean(episode_len))
@@ -80,8 +112,6 @@ class TrainPipeline:
 
     def run(self):
         self.show_hyperparams()
-        current = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
-        best = f'{self.params}/{self.name}_{self.net.name()}_best.pt'
         writer = SummaryWriter(filename_suffix=self.name)
         writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': self.init_elo,
                                           f'MCTS_{self.pure_mcts_n_playout}': 1500}, 0)
@@ -124,7 +154,7 @@ class TrainPipeline:
                                    {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, self.global_step)
                 writer.add_scalars('Action probability/O_cummulative',
                                    {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, self.global_step)
-            self.policy_value_net.save(current)
+            self.policy_value_net.save(self.current)
 
             flag, win_rate = self.select_best_player(self.num_eval)
             writer.add_scalar('Metric/win rate', win_rate, self.global_step)
@@ -132,7 +162,7 @@ class TrainPipeline:
                 print('New best policy!!')
                 best_counter += 1
                 writer.add_scalar('Metric/Best policy', best_counter, self.global_step)
-                self.policy_value_net.save(best)
+                self.policy_value_net.save(self.best)
 
     def update_elo(self):
         print('Updating elo score...')

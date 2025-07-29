@@ -16,7 +16,6 @@ class Base(ABC, nn.Module):
         if path is not None:
             try:
                 self.load_state_dict(torch.load(path, map_location=self.device))
-                print('Load parameters successfully!')
             except Exception as e:
                 print(f'Failed to load parameters.\n{e}')
                 
