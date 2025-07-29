@@ -35,7 +35,11 @@ def _preheat_task():
 
 
 class TrainPipeline:
-    def __init__(self, env_name='Connect4', model='CNN', name='AZ'):
+    def __init__(self, env_name='Connect4', model='CNN', name='AZ', use_multiprocessing=True, num_workers=None):
+        """
+        use_multiprocessing: bool, whether to use multiprocessing for self-play data collection.
+        num_workers: int or None, number of worker processes to use. If None, defaults to play_batch_size.
+        """
         collection = ('Connect4', )  # NBTTT implementation not yet finished.
         if env_name not in collection:
             raise ValueError(
@@ -72,11 +76,15 @@ class TrainPipeline:
         self.elo = Elo(self.init_elo, 1500)
         if not os.path.exists('params'):
             os.makedirs('params')
-        self.num_workers = self.play_batch_size
-        # 若 psutil 可用，可改为物理核数
-        self.pool = mp.Pool(processes=self.num_workers)
-        # 预热进程池，避免第一次任务特别慢
-        self.pool.apply_async(_preheat_task).get(timeout=10)
+        self.num_workers = num_workers if num_workers is not None else self.play_batch_size
+        self.use_multiprocessing = use_multiprocessing and self.num_workers > 1
+        if self.use_multiprocessing:
+            # 若 psutil 可用，可改为物理核数
+            self.pool = mp.Pool(processes=self.num_workers)
+            # 预热进程池，避免第一次任务特别慢
+            self.pool.apply_async(_preheat_task).get(timeout=10)
+        else:
+            self.pool = None
 
     def data_collector(self, n_games=1):
         self.policy_value_net.eval()
@@ -91,27 +99,39 @@ class TrainPipeline:
             is_selfplay=1
         )
 
-        pbar = tqdm(total=n_games, desc="Self-play")
-        results = []
-        play_data_list = []
+        if self.pool is None:
+            # 单进程直接运行
+            pbar = tqdm(total=n_games, desc="Self-play")
+            play_data_list = []
+            for _ in range(n_games):
+                play_data = selfplay_worker(self.env_name, model_path, player_args, self.temp, self.first_n_steps)
+                episode_lens.append(len(play_data))
+                play_data_list.append(play_data)
+                pbar.update()
+            pbar.close()
+        else:
+            # 多进程异步运行
+            pbar = tqdm(total=n_games, desc="Self-play")
+            results = []
+            play_data_list = []
 
-        def _cb(play_data):
-            episode_lens.append(len(play_data))
-            play_data_list.append(play_data)
-            pbar.update()
+            def _cb(play_data):
+                episode_lens.append(len(play_data))
+                play_data_list.append(play_data)
+                pbar.update()
 
-        for _ in range(n_games):
-            async_res = self.pool.apply_async(
-                selfplay_worker,
-                args=(self.env_name, model_path, player_args, self.temp, self.first_n_steps),
-                callback=_cb
-            )
-            results.append(async_res)
+            for _ in range(n_games):
+                async_res = self.pool.apply_async(
+                    selfplay_worker,
+                    args=(self.env_name, model_path, player_args, self.temp, self.first_n_steps),
+                    callback=_cb
+                )
+                results.append(async_res)
 
-        for res in results:
-            res.wait()
+            for res in results:
+                res.wait()
 
-        pbar.close()
+            pbar.close()
 
         for play_data in play_data_list:
             for data in play_data:
@@ -123,8 +143,9 @@ class TrainPipeline:
 
     def __del__(self):
         try:
-            self.pool.close()
-            self.pool.join()
+            if hasattr(self, 'pool') and self.pool is not None:
+                self.pool.close()
+                self.pool.join()
         except Exception:
             pass
 
