@@ -73,4 +73,4 @@ class Game:
                     winner_z[np.array(current_players) != winner] = -1
                 dones = [False]*len(current_players)
                 dones[-1] = True
-                return winner, zip(states, mcts_probs, winner_z, next_states, dones)
+                return winner, zip(states, mcts_probs, winner_z, winner_z, next_states, dones)

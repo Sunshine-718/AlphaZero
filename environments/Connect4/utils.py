@@ -81,7 +81,7 @@ def inspect(net, board=None):
 
 
 def instant_augment(batch):
-    state, prob, value, next_state, done, n = batch
+    state, prob, value, winner, next_state, done = batch
 
     state_flipped = torch.flip(state, dims=[3])
     next_state_flipped = torch.flip(next_state, dims=[3])
@@ -92,9 +92,9 @@ def instant_augment(batch):
     prob = torch.cat([prob, prob_flipped], dim=0)
     value = torch.cat([value, value], dim=0)
     done = torch.cat([done, done], dim=0)
-    n = torch.cat([n, n], dim=0)
+    winner = torch.cat([winner, winner], dim=0)
 
-    return state, prob, value, next_state, done, n
+    return state, prob, value, winner, next_state, done
 
 
 @njit

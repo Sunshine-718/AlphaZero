@@ -45,8 +45,9 @@ class TrainPipeline:
             self.net = self.module.ViT(lr=self.lr, device=self.device)
         else:
             raise ValueError(f'Unknown model type: {model}')
-        params = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
-        self.policy_value_net = PolicyValueNet(self.net, params)
+        self.current = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
+        self.best = f'{self.params}/{self.name}_{self.net.name()}_best.pt'
+        self.policy_value_net = PolicyValueNet(self.net, self.current)
         self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, alpha=self.dirichlet_alpha, is_selfplay=1)
         self.update_best_player()
@@ -65,21 +66,20 @@ class TrainPipeline:
                 play_data = list(play_data)[:]
                 episode_len.append(len(play_data)) 
                 for data in play_data:
-                    self.buffer.store(*data, self.global_step)
+                    self.buffer.store(*data)
         self.episode_len = int(np.mean(episode_len))
 
     def policy_update(self):
         dataloader = self.buffer.dataloader(self.batch_size)
         
-        p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(dataloader, self.module.instant_augment, self.global_step)
+        p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(dataloader, self.module.instant_augment)
             
         print(f'F1 score (new): {f1: .3f}')
         return p_l, v_l, ent, g_n, f1
 
     def run(self):
         self.show_hyperparams()
-        current = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
-        best = f'{self.params}/{self.name}_{self.net.name()}_best.pt'
+        
         writer = SummaryWriter(filename_suffix=self.name)
         writer.add_scalars('Metric/Elo', {f'AlphaZero_{self.n_playout}': self.init_elo,
                                           f'MCTS_{self.pure_mcts_n_playout}': 1500}, 0)
@@ -90,6 +90,7 @@ class TrainPipeline:
                 float('inf'), float('inf')
             self.global_step += 1
             p_loss, v_loss, entropy, grad_norm, f1 = self.policy_update()
+            self.policy_value_net.save(self.current)
             
             print(f'batch i: {self.global_step}, episode_len: {self.episode_len}, '
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
@@ -122,7 +123,6 @@ class TrainPipeline:
                                    {str(idx): i for idx, i in enumerate(np.cumsum(p0))}, self.global_step)
                 writer.add_scalars('Action probability/O_cummulative',
                                    {str(idx): i for idx, i in enumerate(np.cumsum(p1))}, self.global_step)
-            self.policy_value_net.save(current)
 
             flag, win_rate = self.select_best_player(self.num_eval)
             writer.add_scalar('Metric/win rate', win_rate, self.global_step)
@@ -130,7 +130,7 @@ class TrainPipeline:
                 print('New best policy!!')
                 best_counter += 1
                 writer.add_scalar('Metric/Best policy', best_counter, self.global_step)
-                self.policy_value_net.save(best)
+                self.policy_value_net.save(self.best)
 
     def update_elo(self):
         print('Updating elo score...')

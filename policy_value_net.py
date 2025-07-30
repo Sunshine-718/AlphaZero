@@ -35,13 +35,13 @@ class PolicyValueNet:
         action_probs = tuple(zip(valid, probs.flatten()[valid]))
         return action_probs, value.flatten()[0]
 
-    def train_step(self, dataloader, augment, current_step):
+    def train_step(self, dataloader, augment):
         p_l, v_l = [], []
         self.train()
         for _ in range(3):
             for batch in dataloader:
-                state, prob, value, *_ = augment(batch)
-                value = deepcopy(value)
+                state, prob, _, winner, *_ = augment(batch)
+                value = deepcopy(winner)
                 value[value == -1] = 2
                 value = value.view(-1, )
                 self.opt.zero_grad()
@@ -56,7 +56,7 @@ class PolicyValueNet:
         self.eval()
         with torch.no_grad():
             _, new_v = self.net(state)
-        r2 = f1_score(value.cpu().numpy(), torch.argmax(new_v, dim=-1).cpu().numpy(), average='macro')
+        f1 = f1_score(value.cpu().numpy(), torch.argmax(new_v, dim=-1).cpu().numpy(), average='macro')
         with torch.no_grad():
             entropy = -torch.mean(torch.sum(log_p_pred.exp() * log_p_pred, dim=-1))
             total_norm = 0
@@ -64,7 +64,7 @@ class PolicyValueNet:
                 param_norm = param.grad.data.norm(2)
                 total_norm += param_norm.item() ** 2
             total_norm = total_norm ** 0.5
-        return np.mean(p_l), np.mean(v_l), float(entropy), total_norm, r2
+        return np.mean(p_l), np.mean(v_l), float(entropy), total_norm, f1
 
     def save(self, params=None):
         if params is None:

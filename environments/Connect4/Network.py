@@ -110,7 +110,7 @@ class ViT(Base):
         self.n_actions = num_action
         self.device = device
         self.to(device)
-        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=0.01, decoupled_weight_decay=True)
+        self.opt = NAdam(self.parameters(), lr=lr, weight_decay=1e-4, decoupled_weight_decay=True)
 
     def name(self):
         return 'ViT'

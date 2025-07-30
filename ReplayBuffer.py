@@ -6,6 +6,7 @@ import torch
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 
+
 class ReplayBuffer:
     def __init__(self, state_dim, capacity, action_dim, row, col, replay_ratio=0.1, device='cpu', balance_done_value=True):
         self.state = torch.full(
@@ -14,11 +15,12 @@ class ReplayBuffer:
             (capacity, action_dim), torch.nan, dtype=torch.float32, device=device)
         self.value = torch.full((capacity, 1), torch.nan,
                                 dtype=torch.float32, device=device)
+        self.winner = torch.full(
+            (capacity, 1), 0, dtype=torch.int32, device=device)
         self.next_state = torch.full_like(
             self.state, torch.nan, dtype=torch.float32, device=device)
         self.done = torch.full_like(
             self.value, torch.nan, dtype=torch.bool, device=device)
-        self.n = torch.full_like(self.value, 0, dtype=torch.int64, device=device)
         self.replay_ratio = replay_ratio
         self.count = 0
         self.device = device
@@ -37,22 +39,24 @@ class ReplayBuffer:
             self.prob, torch.nan, dtype=torch.float32)
         self.value = torch.full_like(
             self.value, torch.nan, dtype=torch.float32)
+        self.winner = torch.full_like(
+            self.winner, torch.nan, dtype=torch.int32)
         self.next_state = torch.full_like(
             self.next_state, torch.nan, dtype=torch.float32)
         self.done = torch.full_like(self.done, torch.nan, dtype=torch.bool)
-        self.n = torch.full_like(self.n, 0, dtype=torch.int64)
+
         self.count = 0
 
     def to(self, device='cpu'):
         self.state = self.state.to(device)
         self.prob = self.prob.to(device)
         self.value = self.value.to(device)
+        self.winner = self.winner.to(device)
         self.next_state = self.next_state.to(device)
         self.done = self.done.to(device)
-        self.n = self.n.to(device)
         self.device = device
 
-    def store(self, state, prob, value, next_state, done, n):
+    def store(self, state, prob, value, winner, next_state, done):
         idx = self.count % len(self.state)
         self.count += 1
         if isinstance(state, np.ndarray):
@@ -64,17 +68,17 @@ class ReplayBuffer:
                 torch.FloatTensor).to(self.device)
         self.prob[idx] = prob
         self.value[idx] = value
+        self.winner[idx] = winner
         if isinstance(next_state, np.ndarray):
             next_state = torch.from_numpy(next_state).type(
                 torch.FloatTensor).to(self.device)
         self.next_state[idx] = next_state
         self.done[idx] = done
-        self.n[idx] = n
         return idx
 
     def get(self, indices):
         return self.state[indices], self.prob[indices], self.value[indices], \
-            self.next_state[indices], self.done[indices], self.n[indices]
+            self.winner[indices], self.next_state[indices], self.done[indices]
 
     def sample(self, batch_size):
         idx = torch.from_numpy(np.random.randint(
@@ -83,7 +87,8 @@ class ReplayBuffer:
 
     def dataloader(self, batch_size):
         total_samples = self.__len__()
-        max_samples = min(int(total_samples * self.replay_ratio), 10000, total_samples)
+        max_samples = min(
+            int(total_samples * self.replay_ratio), 10000, total_samples)
         if total_samples <= 1000:
             max_samples = total_samples
         if max_samples <= 0:
@@ -98,7 +103,6 @@ class ReplayBuffer:
         n_not_done = max_samples - n_done
 
         def balanced_or_random_sample(indices, values, n, do_balance):
-            # 支持平衡采样，否则直接随机采样
             if do_balance and len(indices) > 0 and torch.allclose(values[indices], values[indices].round()):
                 labels = values[indices].long()
                 unique_vals = torch.unique(labels)
@@ -123,13 +127,15 @@ class ReplayBuffer:
                 size = min(len(indices), n)
                 return indices[torch.randperm(len(indices))[:size]]
 
-        done_sample_idx = balanced_or_random_sample(done_indices, value_labels, n_done, self.balance_done_value)
+        done_sample_idx = balanced_or_random_sample(
+            done_indices, value_labels, n_done, self.balance_done_value)
 
         if len(not_done_indices) == 0:
             not_done_sample_idx = torch.tensor([], dtype=torch.long)
         else:
             size = min(len(not_done_indices), n_not_done)
-            not_done_sample_idx = not_done_indices[torch.randperm(len(not_done_indices))[:size]]
+            not_done_sample_idx = not_done_indices[torch.randperm(len(not_done_indices))[
+                :size]]
 
         idx = torch.cat([done_sample_idx, not_done_sample_idx])
         if len(idx) == 0:
@@ -146,7 +152,7 @@ class ReplayBuffer:
         values = values.long()
         unique_vals = torch.unique(values)
         n_types = unique_vals.numel()
-        assert(n_types <= 3)
+        assert (n_types <= 3)
         n_per_type = batch_size // n_types
         remainder = batch_size % n_types
 
