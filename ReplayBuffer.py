@@ -95,16 +95,16 @@ class ReplayBuffer:
             raise ValueError("No available data to sample.")
 
         done_flags = self.done[:total_samples].squeeze()
-        value_labels = self.value[:total_samples].squeeze()
+        winner_labels = self.winner[:total_samples].squeeze()
         done_indices = (done_flags == 1).nonzero(as_tuple=True)[0]
         not_done_indices = (done_flags == 0).nonzero(as_tuple=True)[0]
 
         n_done = max(1, int(max_samples * 0.2))
         n_not_done = max_samples - n_done
 
-        def balanced_or_random_sample(indices, values, n, do_balance):
-            if do_balance and len(indices) > 0 and torch.allclose(values[indices], values[indices].round()):
-                labels = values[indices].long()
+        def balanced_or_random_sample(indices, winner, n, do_balance):
+            if do_balance and len(indices) > 0 and torch.allclose(winner[indices], winner[indices].round()):
+                labels = winner[indices].long()
                 unique_vals = torch.unique(labels)
                 n_types = unique_vals.numel()
                 n_per_type = n // n_types
@@ -128,7 +128,7 @@ class ReplayBuffer:
                 return indices[torch.randperm(len(indices))[:size]]
 
         done_sample_idx = balanced_or_random_sample(
-            done_indices, value_labels, n_done, self.balance_done_value)
+            done_indices, winner_labels, n_done, self.balance_done_value)
 
         if len(not_done_indices) == 0:
             not_done_sample_idx = torch.tensor([], dtype=torch.long)
