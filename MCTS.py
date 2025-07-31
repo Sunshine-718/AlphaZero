@@ -133,7 +133,6 @@ class MCTS:
         else:
             self.root = TreeNode(None, 1)
 
-
 class MCTS_AZ(MCTS):
     def playout(self, env):
         noise = None
@@ -161,7 +160,6 @@ class MCTS_AZ(MCTS):
         act_visits = [(action, node.n_visits)
                       for action, node in self.root.children.items()]
         return zip(*act_visits)
-
 
     def A0GB_target(self, env):
         env = env.copy()

@@ -44,7 +44,6 @@ class ReplayBuffer:
         self.next_state = torch.full_like(
             self.next_state, torch.nan, dtype=torch.float32)
         self.done = torch.full_like(self.done, torch.nan, dtype=torch.bool)
-
         self.count = 0
 
     def to(self, device='cpu'):
