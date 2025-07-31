@@ -70,7 +70,7 @@ class TrainPipeline:
         self.episode_len = int(np.mean(episode_len))
 
     def policy_update(self):
-        dataloader = self.buffer.sample_balanced(self.batch_size)
+        dataloader = self.buffer.dataloader(self.batch_size)
         
         p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(dataloader, self.module.instant_augment)
             
