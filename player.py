@@ -60,21 +60,10 @@ class NetworkPlayer(Player):
 
 
 class Human(Player):
-    def __init__(self, policy_net=None):
+    def __init__(self):
         super().__init__()
-        self.policy_net = policy_net
 
     def get_action(self, env, *args, **kwargs):
-        if self.policy_net is not None:
-            try:
-                action_probs, value = self.policy_net(env)
-                best_action = max(action_probs, key=lambda x: x[1])[0]
-                print(f'⭐️ Recommended Action: {best_action} (Value: {value:+.4f})')
-                print("Action probabilities:")
-                for act, prob in action_probs:
-                    print(f'  Action {act}: {prob * 100:5.2f}%')
-            except Exception as e:
-                print('[Warning] Failed to provide action recommendation:', e)
         move = int(input('Your move: '))
         return move, None
 

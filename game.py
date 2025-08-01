@@ -9,7 +9,7 @@ class Game:
     def __init__(self, env):
         self.env = env
 
-    def start_play(self, player1, player2, show=1, show_nn=0):
+    def start_play(self, player1, player2, show=1):
         self.env.reset()
         players = [None, player1, player2]
         if show:
@@ -23,24 +23,6 @@ class Game:
             self.env.step(action)
             if show:
                 self.env.show()
-                if show_nn:
-                    try:
-                        # 显示 action_probs
-                        if probs is not None:
-                            print("Action probabilities:")
-                            for idx, p in enumerate(probs):
-                                if idx in prev_env.valid_move():
-                                    print(f"  Action {idx}: {p * 100:5.2f}%")
-
-                        # 显示 value
-                        if hasattr(player, 'net') and hasattr(player.net, 'policy_value_fn'):
-                            _, value = player.net.policy_value_fn(prev_env)
-                            print(f'Estimated value (win prob): {value:+.4f}')
-                        elif hasattr(player, 'mcts'):
-                            _, value = player.mcts.policy(prev_env)
-                            print(f'Estimated value (win prob): {value:+.4f}')
-                    except Exception as e:
-                        pass
             if self.env.done():
                 winner = self.env.winPlayer()
                 if show:

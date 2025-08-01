@@ -53,7 +53,7 @@ class TreeNode:
             self.u = (c_init + math.log((1 + self.parent.n_visits + c_base) / c_base)
                       ) * prior * math.sqrt(self.parent.n_visits) / (1 + self.n_visits)
         return -self.Q + self.u
-    
+
     def UCT(self, c_init, c_base):
         if self.n_visits == 0:
             self.u = float('inf')
@@ -61,7 +61,7 @@ class TreeNode:
             self.u = (c_init + math.log((1 + self.parent.n_visits + c_base) / c_base)
                       ) * math.sqrt(math.log(self.parent.n_visits) / self.n_visits)
         return -self.Q + self.u
-    
+
     def UCB(self, c_init, c_base, UCT=False):
         if UCT:
             return self.UCT(c_init, c_base)
@@ -134,16 +134,19 @@ class MCTS:
         else:
             self.root = TreeNode(None, 1)
 
+
 class MCTS_AZ(MCTS):
     def playout(self, env):
         noise = None
         node = self.select_leaf_node(env)
         env_aug, flipped = env.random_flip()
+        #
         valid = env_aug.valid_move()
         current_state = torch.from_numpy(env_aug.current_state()).float().to(self.policy.device)
         probs, value = self.policy.predict(current_state)
         action_probs = tuple(zip(valid, probs.flatten()[valid]))
         leaf_value = value.flatten()[0]
+        #
         if flipped:
             action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
         if not env.done():
@@ -157,9 +160,9 @@ class MCTS_AZ(MCTS):
             else:
                 leaf_value = (1 if winner == env.turn else -1)
         node.update(leaf_value)
-    
+
     def get_action_visits(self, env):
-        assert((self.alpha is not None) or (self.alpha is None and self.deterministic))
+        assert ((self.alpha is not None) or (self.alpha is None and self.deterministic))
         for _ in range(self.n_playout):
             self.playout(env.copy())
         act_visits = [(action, node.n_visits)
@@ -171,8 +174,7 @@ class MCTS_AZ(MCTS):
         root_player = env.turn
         node, depth = self.root, 0
         while not env.done() and not node.is_leaf:
-            action, node = max(node.children.items(),
-                            key=lambda p: p[1].n_visits)
+            action, node = max(node.children.items(), key=lambda p: p[1].n_visits)
             env.step(action)
             depth += 1
         if env.done():
@@ -182,6 +184,6 @@ class MCTS_AZ(MCTS):
             _, raw_v = self.policy(env)
             leaf_value = raw_v if env.turn == root_player else -raw_v
         return leaf_value
-    
+
     def soft_z_target(self):
         return self.root.Q
