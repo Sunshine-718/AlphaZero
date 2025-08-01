@@ -9,14 +9,13 @@ from utils import Elo
 from game import Game
 from copy import deepcopy
 from environments import load
-from ReplayBuffer import ReplayBuffer
 from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import trange
 
 
 class TrainPipeline:
-    def __init__(self, env_name='Connect4', model='CNN', name='AZ', num_workers=1):
+    def __init__(self, env_name='Connect4', model='CNN', name='AZ', play_batch_size=1):
         collection = ('Connect4', )  # NBTTT implementation not yet finished.
         if env_name not in collection:
             raise ValueError(f'Environment does not exist, available env: {collection}')
@@ -27,16 +26,11 @@ class TrainPipeline:
         self.name = f'{name}_{env_name}'
         self.params = './params'
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.play_batch_size = num_workers
         self.global_step = 0
+        self.play_batch_size = play_batch_size
         for key, value in self.module.training_config.items():
             setattr(self, key, value)
-        self.buffer = ReplayBuffer(self.module.network_config['in_dim'],
-                                   self.buffer_size,
-                                   self.module.network_config['out_dim'],
-                                   self.module.env_config['row'],
-                                   self.module.env_config['col'],
-                                   device=self.device)
+        self.buffer = None
         if model == 'CNN':
             self.net = self.module.CNN(lr=self.lr, device=self.device)
         elif model == 'ViT':
@@ -52,6 +46,9 @@ class TrainPipeline:
         self.elo = Elo(self.init_elo, 1500)
         if not os.path.exists('params'):
             os.makedirs('params')
+    
+    def init_buffer(self, buffer):
+        self.buffer = buffer
 
     def data_collector(self, n_games=1):
         self.net.eval()
