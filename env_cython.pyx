@@ -20,6 +20,8 @@ cdef class Env:
     # —— 私有成员：仅存储 Python 对象，禁止 buffer type ——
     cdef np.ndarray _board          # 6×7 float32 ndarray（保持 Pickle 友好）
     cdef int        _turn           # 1 / -1 当前执子方
+    cdef int        _rows
+    cdef int        _cols
 
     # ===== Pickle 协议 =====
     def __getstate__(self):
@@ -37,9 +39,22 @@ cdef class Env:
             return np.asarray(self._board, dtype=np.float32).copy()
 
     # ===== 基础构造 & 属性 =====
-    def __cinit__(self):
-        self._board = np.zeros((6, 7), dtype=np.float32)
-        self._turn  = 1
+    def __cinit__(self, object board=None):
+        if board is not None:
+            self._board = np.asarray(board, dtype=np.float32).copy()
+            self._rows = self._board.shape[0]
+            self._cols = self._board.shape[1]
+        else:
+            self._rows = 6
+            self._cols = 7
+            self._board = np.zeros((self._rows, self._cols), dtype=np.float32)
+
+        cdef int i, j, count = 0
+        for i in range(self._board.shape[0]):
+            for j in range(self._board.shape[1]):
+                if self._board[i, j] != 0:
+                    count += 1
+        self._turn = 1 if count % 2 == 0 else -1
 
     property turn:
         def __get__(self):

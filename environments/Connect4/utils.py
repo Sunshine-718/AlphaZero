@@ -21,6 +21,37 @@ def board_to_state(board, turn):
 
 
 @njit(fastmath=True)
+def state_to_board(state):
+    # 统一到 (1, 3, H, W)
+    if state.ndim == 3:
+        H, W = state.shape[1], state.shape[2]
+        tmp = np.zeros((1, 3, H, W), dtype=np.float32)
+        tmp[0, :, :, :] = state
+        state = tmp
+    
+    H, W = state.shape[2], state.shape[3]
+    board = np.zeros((H, W), dtype=np.float32)
+
+    # 通道定义：
+    # ch0: 1 的位置，ch1: -1 的位置，ch2: 全 1 表示轮到 1，下 -1 表示轮到 -1
+    ch0 = state[0, 0]
+    ch1 = state[0, 1]
+    ch2 = state[0, 2]
+
+    # 依据 ch0 / ch1 复原棋盘
+    # 使用阈值避免浮点误差（board_to_state 里是精确 0/1）
+    for i in range(H):
+        for j in range(W):
+            if ch0[i, j] > 0.5:
+                board[i, j] = 1.0
+            elif ch1[i, j] > 0.5:
+                board[i, j] = -1.0
+            # 否则保持 0.0
+
+    return board
+
+
+@njit(fastmath=True)
 def check_full(board):
     return len(np.where(board == 0)[0]) == 0
 

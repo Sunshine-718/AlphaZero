@@ -8,10 +8,10 @@ from .utils import check_winner, valid_move, place, check_full, board_to_state, 
 
 
 class Env(Environment):
-    def __init__(self):
+    def __init__(self, board=None):
         super().__init__()
-        self.board = np.zeros((6, 7), dtype=np.float32)
-        self.turn = 1
+        self.board = np.zeros((6, 7), dtype=np.float32) if board is None else board
+        self.turn = 1 if len(np.where(self.board != 0))[0] % 2 == 0 else -1
     
     def copy(self):
         new_env = Env()
