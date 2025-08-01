@@ -31,10 +31,17 @@ class Base(ABC, nn.Module):
                 state, prob, _, winner, *_ = augment(batch)
                 value = deepcopy(winner)
                 value[value == -1] = 2
-                value = value.view(-1, )
+                value = value.view(-1,).type(torch.int64)
+                value_oppo = deepcopy(winner)
+                value_oppo[value_oppo == 1] = -2
+                value_oppo = (-value_oppo).view(-1,).type(torch.int64)
+                state_oppo = deepcopy(state)
+                state_oppo[:, -1, :, :] = -state_oppo[:, -1, :, :]
                 self.opt.zero_grad()
                 log_p_pred, value_pred = self(state)
-                v_loss = F.nll_loss(value_pred, value.type(torch.int64))
+                _, value_oppo_pred = self(state_oppo)
+                v_loss = F.nll_loss(value_pred, value)
+                v_loss += F.nll_loss(value_oppo_pred, value_oppo)
                 p_loss = torch.mean(torch.sum(-prob * log_p_pred, dim=1))
                 loss = p_loss + v_loss
                 loss.backward()
