@@ -3,6 +3,7 @@
 # Written by: Sunshine
 # Created on: 14/Jul/2024  20:41
 import math
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -61,6 +62,18 @@ class CNN(Base):
         log_prob = self.policy_head(hidden)
         value = self.value_head(hidden)
         return log_prob, value
+    
+    def policy(self, state):
+        self.eval()
+        if isinstance(state, np.ndarray):
+            state = torch.from_numpy(state).float().to(self.device)
+        with torch.no_grad():
+            return self.policy_head(self.hidden(state)).exp().cpu().numpy()
+    
+    def value(self, state):
+        self.eval()
+        with torch.no_grad():
+            return self.value_head(self.hidden(state)).exp().cpu().numpy()
     
     def predict(self, state):
         self.eval()

@@ -3,6 +3,7 @@
 # Written by: Sunshine
 # Created on: 20/Jun/2025  21:55
 import math
+import torch
 import numpy as np
 
 
@@ -138,7 +139,11 @@ class MCTS_AZ(MCTS):
         noise = None
         node = self.select_leaf_node(env)
         env_aug, flipped = env.random_flip()
-        action_probs, leaf_value = self.policy(env_aug)
+        valid = env_aug.valid_move()
+        current_state = torch.from_numpy(env_aug.current_state()).float().to(self.policy.device)
+        probs, value = self.policy.predict(current_state)
+        action_probs = tuple(zip(valid, probs.flatten()[valid]))
+        leaf_value = value.flatten()[0]
         if flipped:
             action_probs = [(env.flip_action(action), prob) for action, prob in action_probs]
         if not env.done():

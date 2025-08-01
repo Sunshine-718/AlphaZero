@@ -41,7 +41,6 @@ from PyQt5.QtCore import Qt, QTimer
 import torch
 import torch.nn.functional as F
 from environments import load
-from policy_value_net import PolicyValueNet
 from player import Human, AlphaZeroPlayer
 from game import Game
 
@@ -200,16 +199,16 @@ class Connect4GUI(QWidget):
             network=self.network,
             model_type=self.model_type
         )
-        self.policy_net = PolicyValueNet(net, model_path)
+        self.net.load(model_path)
 
         self.az_player = AlphaZeroPlayer(
-            self.policy_net,
+            self.net,
             c_puct=self.env_module.training_config['c_puct'],
             n_playout=self.n_playout,
             is_selfplay=0,
         )
         self.az_player.eval()
-        self.human = Human(self.policy_net)
+        self.human = Human(self.net)
 
     def start_game(self):
         self.env.reset()

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Written by: Sunshine
 # Created on: 10/Aug/2024  23:47
+import torch
 import numpy as np
 from abc import abstractmethod, ABC
 from utils import policy_value_fn, softmax
@@ -33,7 +34,6 @@ class NetworkPlayer(Player):
         self.net = net
         self.pv_fn = self.net
         self.deterministic = deterministic
-        self.value = None
 
     def train(self):
         self.net.train()
@@ -42,7 +42,9 @@ class NetworkPlayer(Player):
         self.net.eval()
 
     def get_action(self, env, *args, **kwargs):
-        action_probs, self.value = self.net(env)
+        valid = env.valid_move()
+        probs = self.net.policy(env.current_state())
+        action_probs = tuple(zip(valid, probs.flatten()[valid]))
         actions, probs = list(zip(*action_probs))
         probs = np.array(probs, dtype=np.float32)
         probs /= probs.sum()

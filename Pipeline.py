@@ -9,7 +9,6 @@ from utils import Elo
 from game import Game
 from copy import deepcopy
 from environments import load
-from policy_value_net import PolicyValueNet
 from ReplayBuffer import ReplayBuffer
 from player import MCTSPlayer, AlphaZeroPlayer, NetworkPlayer
 from torch.utils.tensorboard import SummaryWriter
@@ -47,8 +46,8 @@ class TrainPipeline:
             raise ValueError(f'Unknown model type: {model}')
         self.current = f'{self.params}/{self.name}_{self.net.name()}_current.pt'
         self.best = f'{self.params}/{self.name}_{self.net.name()}_best.pt'
-        self.policy_value_net = PolicyValueNet(self.net, self.current)
-        self.az_player = AlphaZeroPlayer(self.policy_value_net, c_puct=self.c_puct,
+        self.net.load(self.current)
+        self.az_player = AlphaZeroPlayer(self.net, c_puct=self.c_puct,
                                          n_playout=self.n_playout, alpha=self.dirichlet_alpha, is_selfplay=1)
         self.update_best_player()
         self.elo = Elo(self.init_elo, 1500)
@@ -56,7 +55,7 @@ class TrainPipeline:
             os.makedirs('params')
 
     def data_collector(self, n_games=1):
-        self.policy_value_net.eval()
+        self.net.eval()
         self.az_player.train()
         episode_len = []
         with torch.no_grad():
@@ -72,7 +71,7 @@ class TrainPipeline:
     def policy_update(self):
         dataloader = self.buffer.dataloader(self.batch_size)
         
-        p_l, v_l, ent, g_n, f1 = self.policy_value_net.train_step(dataloader, self.module.instant_augment)
+        p_l, v_l, ent, g_n, f1 = self.net.train_step(dataloader, self.module.instant_augment)
             
         print(f'F1 score (new): {f1: .3f}')
         return p_l, v_l, ent, g_n, f1
@@ -90,7 +89,7 @@ class TrainPipeline:
                 float('inf'), float('inf')
             self.global_step += 1
             p_loss, v_loss, entropy, grad_norm, f1 = self.policy_update()
-            self.policy_value_net.save(self.current)
+            self.net.save(self.current)
             
             print(f'batch i: {self.global_step}, episode_len: {self.episode_len}, '
                   f'loss: {p_loss + v_loss: .8f}, entropy: {entropy: .8f}')
@@ -112,7 +111,7 @@ class TrainPipeline:
                                               f'MCTS_{self.pure_mcts_n_playout}': r_b}, self.global_step)
 
             if self.env_name == 'Connect4':
-                p0, v0, p1, v1 = self.module.inspect(self.policy_value_net.net)
+                p0, v0, p1, v1 = self.module.inspect(self.net)
                 writer.add_scalars('Metric/Initial Value',
                                    {'X': v0, 'O': v1}, self.global_step)
                 writer.add_scalars('Action probability/X',
@@ -130,12 +129,12 @@ class TrainPipeline:
                 print('New best policy!!')
                 best_counter += 1
                 writer.add_scalar('Metric/Best policy', best_counter, self.global_step)
-                self.policy_value_net.save(self.best)
+                self.net.save(self.best)
 
     def update_elo(self):
         print('Updating elo score...')
-        self.policy_value_net.eval()
-        current_az_player = AlphaZeroPlayer(self.policy_value_net,
+        self.net.eval()
+        current_az_player = AlphaZeroPlayer(self.net,
                                             self.c_puct,
                                             self.n_playout,
                                             self.dirichlet_alpha)
@@ -151,9 +150,9 @@ class TrainPipeline:
 
     def select_best_player(self, n_games=10):
         print('Evaluating best player...')
-        self.policy_value_net.eval()
+        self.net.eval()
         self.best_net.eval()
-        current_player = NetworkPlayer(self.policy_value_net, False)
+        current_player = NetworkPlayer(self.net, False)
         best_player = NetworkPlayer(self.best_net, False)
         current_player.eval()
         best_player.eval()
@@ -193,7 +192,7 @@ class TrainPipeline:
         print('=' * 50)
 
     def update_best_player(self):
-        self.best_net = deepcopy(self.policy_value_net)
+        self.best_net = deepcopy(self.net)
         self.best_player = AlphaZeroPlayer(self.best_net, c_puct=self.c_puct, 
                                            n_playout=self.n_playout, alpha=self.dirichlet_alpha)
 
