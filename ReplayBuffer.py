@@ -33,16 +33,11 @@ class ReplayBuffer:
         return self.__len__() >= len(self.state)
 
     def reset(self):
-        self.state = torch.full_like(
-            self.state, torch.nan, dtype=torch.float32)
-        self.prob = torch.full_like(
-            self.prob, torch.nan, dtype=torch.float32)
-        self.value = torch.full_like(
-            self.value, torch.nan, dtype=torch.float32)
-        self.winner = torch.full_like(
-            self.winner, torch.nan, dtype=torch.int32)
-        self.next_state = torch.full_like(
-            self.next_state, torch.nan, dtype=torch.float32)
+        self.state = torch.full_like(self.state, torch.nan, dtype=torch.float32)
+        self.prob = torch.full_like(self.prob, torch.nan, dtype=torch.float32)
+        self.value = torch.full_like(self.value, torch.nan, dtype=torch.float32)
+        self.winner = torch.full_like(self.winner, torch.nan, dtype=torch.int32)
+        self.next_state = torch.full_like(self.next_state, torch.nan, dtype=torch.float32)
         self.done = torch.full_like(self.done, torch.nan, dtype=torch.bool)
         self.count = 0
 
@@ -59,18 +54,15 @@ class ReplayBuffer:
         idx = self.count % len(self.state)
         self.count += 1
         if isinstance(state, np.ndarray):
-            state = torch.from_numpy(state).type(
-                torch.FloatTensor).to(self.device)
+            state = torch.from_numpy(state).type(torch.FloatTensor).to(self.device)
         self.state[idx] = state
         if isinstance(prob, np.ndarray):
-            prob = torch.from_numpy(prob).type(
-                torch.FloatTensor).to(self.device)
+            prob = torch.from_numpy(prob).type(torch.FloatTensor).to(self.device)
         self.prob[idx] = prob
         self.value[idx] = value
         self.winner[idx] = winner
         if isinstance(next_state, np.ndarray):
-            next_state = torch.from_numpy(next_state).type(
-                torch.FloatTensor).to(self.device)
+            next_state = torch.from_numpy(next_state).type(torch.FloatTensor).to(self.device)
         self.next_state[idx] = next_state
         self.done[idx] = done
         return idx
@@ -83,7 +75,7 @@ class ReplayBuffer:
         idx = torch.from_numpy(np.random.randint(
             0, self.__len__(), batch_size, dtype=np.int64))
         return self.get(idx)
-    
+
     def dataloader(self, batch_size):
         total_samples = self.__len__()
         max_samples = min(
@@ -133,8 +125,7 @@ class ReplayBuffer:
             not_done_sample_idx = torch.tensor([], dtype=torch.long)
         else:
             size = min(len(not_done_indices), n_not_done)
-            not_done_sample_idx = not_done_indices[torch.randperm(len(not_done_indices))[
-                :size]]
+            not_done_sample_idx = not_done_indices[torch.randperm(len(not_done_indices))[:size]]
 
         idx = torch.cat([done_sample_idx, not_done_sample_idx])
         if len(idx) == 0:
