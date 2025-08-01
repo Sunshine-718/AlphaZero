@@ -208,7 +208,7 @@ class Connect4GUI(QWidget):
             is_selfplay=0,
         )
         self.az_player.eval()
-        self.human = Human(self.net)
+        self.human = Human()
 
     def start_game(self):
         self.env.reset()
