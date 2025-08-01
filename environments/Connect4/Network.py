@@ -75,13 +75,13 @@ class CNN(Base):
         with torch.no_grad():
             return self.value_head(self.hidden(state)).exp().cpu().numpy()
     
-    def predict(self, state):
+    def predict(self, state, draw_factor=0.5):
         self.eval()
         with torch.no_grad():
             log_prob, value_log_prob = self.forward(state)
             value_prob = value_log_prob.exp()
             player = state[:, -1, 0, 0].view(-1,)
-            value = (-player) * 0.5 * value_prob[:, 0] + value_prob[:, 1] - value_prob[:, 2]
+            value = (-player) * draw_factor * value_prob[:, 0] + value_prob[:, 1] - value_prob[:, 2]
         return log_prob.exp().cpu().numpy(), value.cpu().view(-1, 1).numpy()
 
 
