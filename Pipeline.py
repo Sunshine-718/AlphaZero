@@ -57,14 +57,12 @@ class TrainPipeline:
         self.net.eval()
         self.az_player.train()
         episode_len = []
-        with torch.no_grad():
-            for _ in trange(n_games):
-                _, play_data = self.game.start_self_play(
-                    self.az_player, temp=self.temp, first_n_steps=self.first_n_steps)
-                play_data = list(play_data)[:]
-                episode_len.append(len(play_data))
-                for data in play_data:
-                    self.buffer.store(*data)
+        for _ in trange(n_games):
+            _, play_data = self.game.start_self_play(self.az_player, temp=self.temp, first_n_steps=self.first_n_steps)
+            play_data = list(play_data)[:]
+            episode_len.append(len(play_data))
+            for data in play_data:
+                self.buffer.store(*data)
         self.episode_len = int(np.mean(episode_len))
 
     def policy_update(self):
