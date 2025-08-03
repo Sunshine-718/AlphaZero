@@ -22,12 +22,18 @@ class ReplayBuffer:
         self.done = torch.full_like(
             self.value, torch.nan, dtype=torch.bool, device=device)
         self.replay_ratio = replay_ratio
-        self.count = 0
         self.device = device
         self.balance_done_value = balance_done_value
+        self.current_capacity = 2500
+        self._ptr = 0
 
     def __len__(self):
-        return min(self.count, len(self.state))
+        return len(self.value[~self.value.isnan()])
+    
+    def double(self):
+        self.current_capacity = min(len(self.state), self.current_capacity * 2)
+        self._ptr = len(self) % len(self.state)
+        assert(0 <= self._ptr < len(self.current_capacity))
 
     def is_full(self):
         return self.__len__() >= len(self.state)
@@ -39,7 +45,7 @@ class ReplayBuffer:
         self.winner = torch.full_like(self.winner, torch.nan, dtype=torch.int32)
         self.next_state = torch.full_like(self.next_state, torch.nan, dtype=torch.float32)
         self.done = torch.full_like(self.done, torch.nan, dtype=torch.bool)
-        self.count = 0
+        self._ptr = 0
 
     def to(self, device='cpu'):
         self.state = self.state.to(device)
@@ -51,18 +57,18 @@ class ReplayBuffer:
         self.device = device
 
     def store(self, state, prob, value, winner, next_state, done):
-        idx = self.count % len(self.state)
-        self.count += 1
+        idx = self._ptr
+        self._ptr = (self._ptr + 1) % self.current_capacity
         if isinstance(state, np.ndarray):
-            state = torch.from_numpy(state).type(torch.FloatTensor).to(self.device)
+            state = torch.from_numpy(state).float().to(self.device)
         self.state[idx] = state
         if isinstance(prob, np.ndarray):
-            prob = torch.from_numpy(prob).type(torch.FloatTensor).to(self.device)
+            prob = torch.from_numpy(prob).float().to(self.device)
         self.prob[idx] = prob
         self.value[idx] = value
         self.winner[idx] = winner
         if isinstance(next_state, np.ndarray):
-            next_state = torch.from_numpy(next_state).type(torch.FloatTensor).to(self.device)
+            next_state = torch.from_numpy(next_state).float().to(self.device)
         self.next_state[idx] = next_state
         self.done[idx] = done
         return idx

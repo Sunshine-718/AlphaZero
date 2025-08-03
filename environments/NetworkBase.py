@@ -31,10 +31,10 @@ class Base(ABC, nn.Module):
                 state, prob, _, winner, *_ = augment(batch)
                 value = deepcopy(winner)
                 value[value == -1] = 2
-                value = value.view(-1,).type(torch.int64)
+                value = value.view(-1,).int()
                 value_oppo = deepcopy(winner)
                 value_oppo[value_oppo == 1] = -2
-                value_oppo = (-value_oppo).view(-1,).type(torch.int64)
+                value_oppo = (-value_oppo).view(-1,).int()
                 state_oppo = deepcopy(state)
                 state_oppo[:, -1, :, :] = -state_oppo[:, -1, :, :]
                 self.opt.zero_grad()
