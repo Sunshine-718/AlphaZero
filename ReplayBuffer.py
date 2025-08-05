@@ -8,24 +8,32 @@ from torch.utils.data import TensorDataset, DataLoader
 
 
 class ReplayBuffer:
+    _instance = None
+    _initialized = False
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
     def __init__(self, state_dim, capacity, action_dim, row, col, replay_ratio=0.1, device='cpu', balance_done_value=True):
-        self.state = torch.full(
-            (capacity, state_dim, row, col), torch.nan, dtype=torch.float32, device=device)
-        self.prob = torch.full(
-            (capacity, action_dim), torch.nan, dtype=torch.float32, device=device)
-        self.value = torch.full((capacity, 1), torch.nan,
-                                dtype=torch.float32, device=device)
-        self.winner = torch.full(
-            (capacity, 1), 0, dtype=torch.int32, device=device)
-        self.next_state = torch.full_like(
-            self.state, torch.nan, dtype=torch.float32, device=device)
-        self.done = torch.full_like(
-            self.value, torch.nan, dtype=torch.bool, device=device)
-        self.replay_ratio = replay_ratio
-        self.device = device
-        self.balance_done_value = balance_done_value
-        self.current_capacity = 2500
-        self._ptr = 0
+        if not self._initialized:
+            self.state = torch.full(
+                (capacity, state_dim, row, col), torch.nan, dtype=torch.float32, device=device)
+            self.prob = torch.full(
+                (capacity, action_dim), torch.nan, dtype=torch.float32, device=device)
+            self.value = torch.full((capacity, 1), torch.nan,
+                                    dtype=torch.float32, device=device)
+            self.winner = torch.full(
+                (capacity, 1), 0, dtype=torch.int32, device=device)
+            self.next_state = torch.full_like(
+                self.state, torch.nan, dtype=torch.float32, device=device)
+            self.done = torch.full_like(
+                self.value, torch.nan, dtype=torch.bool, device=device)
+            self.replay_ratio = replay_ratio
+            self.device = device
+            self.balance_done_value = balance_done_value
+            self.current_capacity = 2500
+            self._ptr = 0
 
     def __len__(self):
         return len(self.value[~self.value.isnan()])
