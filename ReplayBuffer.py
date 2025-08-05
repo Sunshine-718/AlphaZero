@@ -31,9 +31,10 @@ class ReplayBuffer:
         return len(self.value[~self.value.isnan()])
     
     def double(self):
-        self.current_capacity = min(len(self.state), self.current_capacity * 2)
-        self._ptr = len(self) % len(self.state)
-        assert(0 <= self._ptr < self.current_capacity)
+        if self.current_capacity < len(self.state):
+            self.current_capacity = min(len(self.state), self.current_capacity * 2)
+            self._ptr = len(self) % len(self.state)
+            assert(0 <= self._ptr < self.current_capacity)
 
     def is_full(self):
         return self.__len__() >= len(self.state)
