@@ -4,7 +4,7 @@ training_config = {
     "n_playout": 80,
     "first_n_steps": 10,
     "c_puct": 1.25,
-    "buffer_size": 1000000,
+    "buffer_size": 200000,
     "batch_size": 256,
     "pure_mcts_n_playout": 1000,
     "dirichlet_alpha": 0.7,
