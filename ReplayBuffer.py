@@ -32,7 +32,7 @@ class ReplayBuffer:
             self.replay_ratio = replay_ratio
             self.device = device
             self.balance_done_value = balance_done_value
-            self.current_capacity = 2500
+            self.current_capacity = capacity
             self._ptr = 0
 
     def __len__(self):
@@ -55,7 +55,6 @@ class ReplayBuffer:
         self.next_state = torch.full_like(self.next_state, torch.nan, dtype=torch.float32)
         self.done = torch.full_like(self.done, torch.nan, dtype=torch.bool)
         self._ptr = 0
-        self.current_capacity = 2500
 
     def to(self, device='cpu'):
         self.state = self.state.to(device)
