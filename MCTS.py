@@ -144,7 +144,9 @@ class MCTS_AZ(MCTS):
         valid = env_aug.valid_move()
         current_state = torch.from_numpy(env_aug.current_state()).float().to(self.policy.device)
         probs, value = self.policy.predict(current_state)
-        action_probs = tuple(zip(valid, probs.flatten()[valid]))
+        probs = probs.flatten()[valid]
+        probs /= sum(probs)
+        action_probs = tuple(zip(valid, probs))
         leaf_value = value.flatten()[0]
         #
         if flipped:
